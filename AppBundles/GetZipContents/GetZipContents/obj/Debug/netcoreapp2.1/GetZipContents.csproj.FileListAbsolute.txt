@@ -1,0 +1,11 @@
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\bin\Debug\netcoreapp2.1\GetZipContents.deps.json
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\bin\Debug\netcoreapp2.1\GetZipContents.runtimeconfig.json
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\bin\Debug\netcoreapp2.1\GetZipContents.runtimeconfig.dev.json
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\bin\Debug\netcoreapp2.1\GetZipContents.dll
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\obj\Debug\netcoreapp2.1\GetZipContents.csprojAssemblyReference.cache
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\obj\Debug\netcoreapp2.1\GetZipContents.csproj.CoreCompileInputs.cache
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\obj\Debug\netcoreapp2.1\GetZipContents.AssemblyInfoInputs.cache
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\obj\Debug\netcoreapp2.1\GetZipContents.AssemblyInfo.cs
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\bin\Debug\netcoreapp2.1\GetZipContents.pdb
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\obj\Debug\netcoreapp2.1\GetZipContents.dll
+C:\Users\Adam Nagy\source\repos\GetZipContents\GetZipContents\obj\Debug\netcoreapp2.1\GetZipContents.pdb

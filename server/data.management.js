@@ -21,6 +21,8 @@ var config = require('./config');
 
 var forgeSDK = require('forge-apis');
 
+var utils = require('./utils');
+
 router.post('/buckets', jsonParser, function (req, res) {
     var tokenSession = new token(req.session);
 
@@ -43,7 +45,7 @@ router.post('/buckets', jsonParser, function (req, res) {
 
 router.get('/files/:id', function (req, res) {
     var id = req.params.id
-    var boName = getBucketKeyObjectName(id)
+    var boName = utils.getBucketKeyObjectName(id)
 
     var tokenSession = new token(req.session);
 
@@ -65,7 +67,7 @@ router.delete('/files/:id', function (req, res) {
     var tokenSession = new token(req.session)
 
     var id = req.params.id
-    var boName = getBucketKeyObjectName(id)
+    var boName = utils.getBucketKeyObjectName(id)
 
     var objects = new forgeSDK.ObjectsApi();
     objects.deleteObject(boName.bucketKey, boName.objectName, tokenSession.getOAuth(), tokenSession.getCredentials())
@@ -79,7 +81,7 @@ router.delete('/files/:id', function (req, res) {
 
 router.get('/files/:id/publicurl', function (req, res) {
     var id = req.params.id
-    var boName = getBucketKeyObjectName(id)
+    var boName = utils.getBucketKeyObjectName(id)
 
     var tokenSession = new token(req.session);
 
@@ -192,29 +194,6 @@ router.post('/chunks', rawParser, function (req, res) {
     });
 
 });
-
-function getBucketKeyObjectName(objectId) {
-    // the objectId comes in the form of
-    // urn:adsk.objects:os.object:BUCKET_KEY/OBJECT_NAME
-    var objectIdParams = objectId.split('/');
-    var objectNameValue = objectIdParams[objectIdParams.length - 1];
-    // then split again by :
-    var bucketKeyParams = objectIdParams[objectIdParams.length - 2].split(':');
-    // and get the BucketKey
-    var bucketKeyValue = bucketKeyParams[bucketKeyParams.length - 1];
-
-    var ret = {
-        bucketKey: decodeURIComponent(bucketKeyValue),
-        objectName: decodeURIComponent(objectNameValue)
-    };
-
-    return ret;
-}
-
-//
-
-
-
 
 /////////////////////////////////////////////////////////////////
 // Provide information to the tree control on the client

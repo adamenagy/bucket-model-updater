@@ -1,0 +1,298 @@
+[
+  {
+    "name": ".vs",
+    "type": "folder",
+    "children": [
+      {
+        "name": "config",
+        "type": "folder",
+        "children": [
+          {
+            "name": "applicationhost.config",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "GetZipContents",
+        "type": "folder",
+        "children": [
+          {
+            "name": "v15",
+            "type": "folder",
+            "children": [
+              {
+                "name": "Server",
+                "type": "folder",
+                "children": [
+                  {
+                    "name": "sqlite3",
+                    "type": "folder",
+                    "children": [
+                      {
+                        "name": "db.lock",
+                        "type": "file"
+                      },
+                      {
+                        "name": "storage.ide",
+                        "type": "file"
+                      },
+                      {
+                        "name": "storage.ide-shm",
+                        "type": "file"
+                      },
+                      {
+                        "name": "storage.ide-wal",
+                        "type": "file"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": ".suo",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "GetZipContents",
+    "type": "folder",
+    "children": [
+      {
+        "name": "bin",
+        "type": "folder",
+        "children": [
+          {
+            "name": "Debug",
+            "type": "folder",
+            "children": [
+              {
+                "name": "netcoreapp2.1",
+                "type": "folder",
+                "children": [
+                  {
+                    "name": "GetZipContents.deps.json",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.dll",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.pdb",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.runtimeconfig.dev.json",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.runtimeconfig.json",
+                    "type": "file"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Release",
+            "type": "folder",
+            "children": [
+              {
+                "name": "netcoreapp2.1",
+                "type": "folder",
+                "children": [
+                  {
+                    "name": "GetZipContents.deps.json",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.dll",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.pdb",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.runtimeconfig.dev.json",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.runtimeconfig.json",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.zip",
+                    "type": "file"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "obj",
+        "type": "folder",
+        "children": [
+          {
+            "name": "Debug",
+            "type": "folder",
+            "children": [
+              {
+                "name": "netcoreapp2.1",
+                "type": "folder",
+                "children": [
+                  {
+                    "name": "GetZipContents.AssemblyInfo.cs",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.AssemblyInfoInputs.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.assets.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.csproj.CoreCompileInputs.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.csproj.FileListAbsolute.txt",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.csprojAssemblyReference.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.dll",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.pdb",
+                    "type": "file"
+                  },
+                  {
+                    "name": "TemporaryGeneratedFile_036C0B5B-1481-4323-8D20-8F5ADCB23D92.cs",
+                    "type": "file"
+                  },
+                  {
+                    "name": "TemporaryGeneratedFile_5937a670-0e60-4077-877b-f7221da3dda1.cs",
+                    "type": "file"
+                  },
+                  {
+                    "name": "TemporaryGeneratedFile_E7A71F73-0F8D-4B9B-B56E-8E70B10BC5D3.cs",
+                    "type": "file"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Release",
+            "type": "folder",
+            "children": [
+              {
+                "name": "netcoreapp2.1",
+                "type": "folder",
+                "children": [
+                  {
+                    "name": "GetZipContents.AssemblyInfo.cs",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.AssemblyInfoInputs.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.assets.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.csproj.CoreCompileInputs.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.csproj.FileListAbsolute.txt",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.csprojAssemblyReference.cache",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.dll",
+                    "type": "file"
+                  },
+                  {
+                    "name": "GetZipContents.pdb",
+                    "type": "file"
+                  },
+                  {
+                    "name": "TemporaryGeneratedFile_036C0B5B-1481-4323-8D20-8F5ADCB23D92.cs",
+                    "type": "file"
+                  },
+                  {
+                    "name": "TemporaryGeneratedFile_5937a670-0e60-4077-877b-f7221da3dda1.cs",
+                    "type": "file"
+                  },
+                  {
+                    "name": "TemporaryGeneratedFile_E7A71F73-0F8D-4B9B-B56E-8E70B10BC5D3.cs",
+                    "type": "file"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "GetZipContents.csproj.nuget.cache",
+            "type": "file"
+          },
+          {
+            "name": "GetZipContents.csproj.nuget.g.props",
+            "type": "file"
+          },
+          {
+            "name": "GetZipContents.csproj.nuget.g.targets",
+            "type": "file"
+          },
+          {
+            "name": "project.assets.json",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "Properties",
+        "type": "folder",
+        "children": [
+          {
+            "name": "launchSettings.json",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "GetZipContents.csproj",
+        "type": "file"
+      },
+      {
+        "name": "Program.cs",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "GetZipContents.sln",
+    "type": "file"
+  }
+]

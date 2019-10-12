@@ -15,24 +15,6 @@ var zlib = require("zlib");
 var forgeSDK = require('forge-apis');
 
 /////////////////////////////////////////////////////////////////
-// Get the list of export file formats supported by the
-// Model Derivative API
-/////////////////////////////////////////////////////////////////
-router.get('/formats', function (req, res) {
-    var derivatives = new forgeSDK.DerivativesApi();
-
-    var tokenSession = new token(req.session);
-
-    derivatives.getFormats({}, tokenSession.getOAuth(), tokenSession.getCredentials())
-        .then(function (formats) {
-            res.json(formats.body);
-        })
-        .catch(function (error) {
-            res.status(error.statusCode).end(error.statusMessage);
-        });
-});
-
-/////////////////////////////////////////////////////////////////
 // Get the manifest of the given file. This will contain
 // information about the various formats which are currently
 // available for this file

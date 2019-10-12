@@ -53,9 +53,11 @@ app.set('port', process.env.PORT || 3000); // main port
 var oauth = require('./oauth');
 var dm = require('./data.management');
 var md = require('./model.derivative');
+var da = require('./design.automation');
 app.use('/', oauth); // redirect oauth API calls
+app.use('/da', da); // redirect our Design Automation API calls
 app.use('/dm', dm); // redirect our Data Management API calls
-app.use('/md', md); // redirect our Data Management API calls
+app.use('/md', md); // redirect our Model Derivative API calls
 
 
 module.exports = app;

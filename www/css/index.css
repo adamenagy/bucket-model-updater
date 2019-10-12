@@ -32,14 +32,14 @@
 }
 
 
-#forgeHierarchy {
-    height: 250px; top: 0;
+#forgeZipContents {
+    height: 245px; top: 0;
 }
 #forgeFileOptions {
     height: 55px;   top: 245px;
     border-top-width: 1px; border-top-color: silver; border-top-style: solid;
 }
-#forgeProperties {
+#forgeModelParams {
     height: 195px;  bottom: 0;
     border-top-width: 1px; border-top-color: silver; border-top-style: solid;
 }

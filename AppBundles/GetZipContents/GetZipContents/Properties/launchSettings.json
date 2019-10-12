@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "GetZipContents": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\Adam Nagy\\source\\repos\\GetZipContents\" \"output.json\"",
+      "workingDirectory": "C:\\Users\\Adam Nagy\\source\\repos\\GetZipContents"
+    }
+  }
+}

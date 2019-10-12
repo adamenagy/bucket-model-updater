@@ -1,6 +1,4 @@
 var MyVars = {
-    keepTrying: true,
-    ajaxCalls: []
 };
 
 $(document).ready(function () {
@@ -20,7 +18,7 @@ $(document).ready(function () {
         // adamnagy_2017_06_14
         var bucketName = $("#bucketName").val()
         var bucketType = $("#bucketType").val()
-        MyVars.ajaxCalls.push($.ajax({
+        MyVars.cancellableOperation.ajaxCalls.push($.ajax({
             url: '/dm/buckets',
             type: 'POST',
             contentType: 'application/json',
@@ -59,7 +57,7 @@ $(document).ready(function () {
         return new Promise((resolve, reject) => {
             console.log("uploadChunk [before]: sessionId = " + sessionId + ", range = " + range);
 
-            MyVars.ajaxCalls.push($.ajax({
+            MyVars.cancellableOperation.ajaxCalls.push($.ajax({
                 url: "/dm/chunks",
                 type: "POST",
                 headers: {
@@ -118,7 +116,7 @@ $(document).ready(function () {
 
                 while (true) {
                     try {
-                        if (!MyVars.keepTrying) {
+                        if (!MyVars.cancellableOperation.keepTrying) {
                             reject(false);
                             return;
                         }
@@ -140,20 +138,20 @@ $(document).ready(function () {
             });
         }
 
-        MyVars.promises = [];
+        let promises = [];
         for (let start = 0; start < total; start += step) {
-            MyVars.promises.push(createPromise(start, start + step));
+            promises.push(createPromise(start, start + step));
         }
 
         // Whether some failed or not, let's wait for all of them to return resolve or reject
-        Promise.allSettled(MyVars.promises)
+        Promise.allSettled(promises)
             .then((results) => {
                 let failed = results.find((item) => {
                     return item.status === 'rejected';
                 })
 
                 if (failed) {
-                    if (MyVars.keepTrying) {
+                    if (MyVars.cancellableOperation.keepTrying) {
                         console.log("uploadChunks >> fail");
                         showProgress("Upload failed", "failed");
                     } else {
@@ -167,14 +165,19 @@ $(document).ready(function () {
                 }
                 
                 $("#forgeUploadHidden").val('');
-                MyVars.keepTrying = true;
+                cleanupCancellableOperation()
             })
     }
 
     $("#forgeUploadHidden").change(function (evt) {
+        startCancellableOperation()
         showProgress("Uploading file... ", "inprogress");
-
         uploadChunks(this.files[0]);
+    });
+
+    $("#showZipContents").click(function (evt) {
+        // Show zip contents
+        showZipContents(MyVars.selectedNode.original.id);
     });
 
     var upload = $("#uploadFile").click(function (evt) {
@@ -196,24 +199,32 @@ $(document).ready(function () {
 
             // Fill the tree with A360 items
             prepareFilesTree();
-
-            // Download list of available file formats
-            fillFormats();
         }, function (err) {
             showProgress(err.responseText, 'failed');
         });
     });
 
     $('#progressInfo').click(function () {
-        MyVars.keepTrying = false;
-
-        // In case there are parallel downloads or any calls, just cancel them
-        MyVars.ajaxCalls.map((ajaxCall) => {
-            ajaxCall.abort();
-        });
-        MyVars.ajaxCalls = [];
+        cleanupCancellableOperation()
     });
 });
+
+function cleanupCancellableOperation() {
+    if (MyVars.cancellableOperation) {
+        MyVars.cancellableOperation.keepTrying = false;
+
+        // In case there are parallel downloads or any calls, just cancel them
+        MyVars.cancellableOperation.ajaxCalls.map((ajaxCall) => {
+            ajaxCall.abort();
+        });
+        
+        MyVars.cancellableOperation = undefined;
+    }      
+}
+
+function startCancellableOperation() {
+    MyVars.cancellableOperation = { ajaxCalls: [], keepTrying: true } 
+}
 
 function base64encode(str) {
     var ret = "";
@@ -238,7 +249,7 @@ function base64encode(str) {
 }
 
 function logoff() {
-    MyVars.ajaxCalls.push($.ajax({
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/user/logoff',
         success: function (oauthUrl) {
             location.href = oauthUrl;
@@ -252,7 +263,7 @@ function get2LegToken(onSuccess, onError) {
         var client_id = $('#client_id').val();
         var client_secret = $('#client_secret').val();
         var scopes = $('#scopes').val();
-        MyVars.ajaxCalls.push($.ajax({
+        $.ajax({
             url: '/user/token',
             data: {
                 client_id: client_id,
@@ -267,7 +278,7 @@ function get2LegToken(onSuccess, onError) {
                     onError(err);
                 }
             }
-        }));
+        });
     } else {
         console.log('Returning saved 3 legged token (User Authorization): ' + MyVars.token2Leg);
 
@@ -379,7 +390,7 @@ function askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType,
         }
     };
 
-    MyVars.ajaxCalls.push($.ajax({
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/md/export',
         type: 'POST',
         contentType: 'application/json',
@@ -411,7 +422,7 @@ function askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType,
 // We need this in order to get an OBJ file for the model
 function getMetadata(urn, onsuccess, onerror) {
     console.log("getMetadata for urn=" + urn);
-    MyVars.ajaxCalls.push($.ajax({
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/md/metadatas/' + urn,
         type: 'GET'
     }).done(function (data) {
@@ -439,7 +450,7 @@ function getMetadata(urn, onsuccess, onerror) {
 
 function getHierarchy(urn, guid, onsuccess) {
     console.log("getHierarchy for urn=" + urn + " and guid=" + guid);
-    MyVars.ajaxCalls.push($.ajax({
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/md/hierarchy',
         type: 'GET',
         data: { urn: urn, guid: guid }
@@ -449,13 +460,13 @@ function getHierarchy(urn, guid, onsuccess) {
         // If it's 'accepted' then it's not ready yet
         if (data.result === 'accepted') {
             // Let's try again
-            if (MyVars.keepTrying) {
+            if (MyVars.cancellableOperation.keepTrying) {
                 window.setTimeout(function () {
                     getHierarchy(urn, guid, onsuccess);
                 }, 500
                 );
             } else {
-                MyVars.keepTrying = true;
+                cleanupCancellableOperation()
             }
 
             return;
@@ -472,7 +483,7 @@ function getHierarchy(urn, guid, onsuccess) {
 
 function getProperties(urn, guid, onsuccess) {
     console.log("getProperties for urn=" + urn + " and guid=" + guid);
-    MyVars.ajaxCalls.push($.ajax({
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/md/properties',
         type: 'GET',
         data: { urn: urn, guid: guid }
@@ -489,7 +500,7 @@ function getProperties(urn, guid, onsuccess) {
 
 function getManifest(urn, onsuccess) {
     console.log("getManifest for urn=" + urn);
-    MyVars.ajaxCalls.push($.ajax({
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/md/manifests/' + urn,
         type: 'GET'
     }).done(function (data) {
@@ -499,14 +510,14 @@ function getManifest(urn, onsuccess) {
             if (data.progress !== 'complete') {
                 showProgress("Translation progress: " + data.progress, data.status);
 
-                if (MyVars.keepTrying) {
+                if (MyVars.cancellableOperation.keepTrying) {
                     // Keep calling until it's done
                     window.setTimeout(function () {
                         getManifest(urn, onsuccess);
                     }, 500
                     );
                 } else {
-                    MyVars.keepTrying = true;
+                    cleanupCancellableOperation()
                 }
             } else {
                 showProgress("Translation completed", data.status);
@@ -526,7 +537,7 @@ function getManifest(urn, onsuccess) {
 
 function delManifest(urn, onsuccess) {
     console.log("delManifest for urn=" + urn);
-    MyVars.ajaxCalls.push($.ajax({
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/md/manifests/' + urn,
         type: 'DELETE'
     }).done(function (data) {
@@ -540,131 +551,6 @@ function delManifest(urn, onsuccess) {
     }).fail(function (err) {
         console.log('DELETE /api/manifest call failed\n' + err.statusText);
     }));
-}
-
-/////////////////////////////////////////////////////////////////
-// Formats / #forgeFormats
-// Shows the export file formats available for the selected model
-/////////////////////////////////////////////////////////////////
-
-function getFormats(onsuccess) {
-    console.log("getFormats");
-    MyVars.ajaxCalls.push($.ajax({
-        url: '/md/formats',
-        type: 'GET'
-    }).done(function (data) {
-        console.log(data);
-
-        if (onsuccess !== undefined) {
-            onsuccess(data);
-        }
-    }).fail(function (err) {
-        console.log('GET /md/formats call failed\n' + err.statusText);
-    }));
-}
-
-function fillFormats() {
-    getFormats(function (data) {
-        var forgeFormats = $("#forgeFormats");
-        forgeFormats.data("forgeFormats", data);
-
-        var download = $("#downloadExport");
-        download.click(function () {
-            MyVars.keepTrying = true;
-
-            var elem = $("#forgeHierarchy");
-            var tree = elem.jstree();
-            var rootNodeId = tree.get_node('#').children[0];
-            var rootNode = tree.get_node(rootNodeId);
-
-            var format = $("#forgeFormats").val();
-            var urn = MyVars.selectedUrn;
-            var guid = MyVars.selectedGuid;
-            var fileName = rootNode.text + "." + format;
-            var rootFileName = MyVars.rootFileName;
-            var nodeIds = elem.jstree("get_checked", null, true);
-
-            // Only OBJ supports subcomponent selection
-            // using objectId's
-            var objectIds = null;
-            if (format === 'obj') {
-                objectIds = [-1];
-                if (nodeIds.length) {
-                    objectIds = [];
-
-                    $.each(nodeIds, function (index, value) {
-                        objectIds.push(parseInt(value, 10));
-                    });
-                }
-            }
-
-            // The rest can be exported with a single function
-            askForFileType(format, urn, guid, objectIds, rootFileName, MyVars.fileExtType, function (res) {
-                if (format === 'thumbnail') {
-                    getThumbnail(urn);
-
-                    return;
-                }
-
-                // Find the appropriate obj part
-                for (var derId in res.derivatives) {
-                    var der = res.derivatives[derId];
-                    if (der.outputType === format) {
-                        // found it, now get derivative urn
-                        // leave objectIds parameter undefined
-                        var derUrns = getDerivativeUrns(der, format, false, objectIds);
-
-                        // url encode it
-                        if (derUrns) {
-                            derUrns[0] = encodeURIComponent(derUrns[0]);
-
-                            downloadDerivative(urn, derUrns[0], fileName);
-
-                            // in case of obj format, also try to download the material
-                            if (format === 'obj') {
-                                downloadDerivative(urn, derUrns[0].replace('.obj', '.mtl'), fileName.replace('.obj', '.mtl'));
-                            }
-                        } else {
-                            showProgress("Could not find specific OBJ file", "failed");
-                            console.log("askForFileType, Did not find the OBJ translation with the correct list of objectIds");
-                        }
-
-                        return;
-                    }
-                }
-
-                showProgress("Could not find exported file", "failed");
-                console.log("askForFileType, Did not find " + format + " in the manifest");
-            });
-
-        });
-
-        var deleteManifest = $("#deleteManifest");
-        deleteManifest.click(function () {
-            var urn = MyVars.selectedUrn;
-
-            cleanupViewer();
-
-            delManifest(urn, function () { });
-        });
-    });
-}
-
-function updateFormats(format) {
-
-    var forgeFormats = $("#forgeFormats");
-    var formats = forgeFormats.data("forgeFormats");
-    forgeFormats.empty();
-
-    // obj is not listed for all possible files
-    // using this workaround for the time being
-    //forgeFormats.append($("<option />").val('obj').text('obj'));
-
-    $.each(formats.formats, function (key, value) {
-        if (key === 'obj' || value.indexOf(format) > -1) {
-            forgeFormats.append($("<option />").val(key).text(key));
-        }
-    });
 }
 
 /////////////////////////////////////////////////////////////////
@@ -721,26 +607,20 @@ function prepareFilesTree() {
         // to find the actual versions
         $('#forgeFiles').jstree("open_node", data.node);
 
-        // Disable the hierarchy related controls for the time being
-        $("#forgeFormats").attr('disabled', 'disabled');
-        $("#downloadExport").attr('disabled', 'disabled');
-
         MyVars.selectedNode = data.node;
 
         if (data.node.type === 'file') {
             $("#deleteManifest").removeAttr('disabled');
             $("#uploadFile").removeAttr('disabled');
 
-            MyVars.keepTrying = true;
-
             // Clear hierarchy tree
-            $('#forgeHierarchy').empty().jstree('destroy');
+            $('#forgeZipContents').empty().jstree('destroy');
 
             // Clear properties tree
-            $('#forgeProperties').empty().jstree('destroy');
+            $('#forgeModelParams').empty().jstree('destroy');
 
             // Delete cached data
-            $('#forgeProperties').data('forgeProperties', null);
+            $('#forgeModelParams').data('forgeModelParams', null);
 
             MyVars.fileExtType = getFileType(data.node.text)
 
@@ -756,18 +636,6 @@ function prepareFilesTree() {
                 }
             }
 
-            var realExtType = getFileType(MyVars.rootFileName)
-            updateFormats(realExtType);
-
-            // Fill hierarchy tree
-            // urn, guid, objectIds, rootFileName, fileExtType
-            showHierarchy(
-                MyVars.selectedUrn,
-                null,
-                null,
-                MyVars.rootFileName,
-                MyVars.fileExtType
-            );
             console.log(
                 "MyVars.selectedUrn = " + MyVars.selectedUrn
             );
@@ -781,8 +649,8 @@ function prepareFilesTree() {
 
             // And clear trees to avoid confusion thinking that the
             // data belongs to the clicked model
-            $('#forgeHierarchy').empty().jstree('destroy');
-            $('#forgeProperties').empty().jstree('destroy');
+            $('#forgeZipContents').empty().jstree('destroy');
+            $('#forgeModelParams').empty().jstree('destroy');
         }
     });
 }
@@ -797,9 +665,8 @@ function downloadFile(id) {
 }
 
 function deleteFile(id) {
-
     console.log("Delete file = " + id);
-    MyVars.ajaxCalls.push($.ajax({
+    $.ajax({
         url: '/dm/files/' + encodeURIComponent(id),
         type: 'DELETE'
     }).done(function (data) {
@@ -810,12 +677,12 @@ function deleteFile(id) {
         }
     }).fail(function (err) {
         console.log('DELETE /dm/files/ call failed\n' + err.statusText);
-    }));
+    });
 }
 
 function deleteBucket(id) {
     console.log("Delete bucket = " + id);
-    MyVars.ajaxCalls.push($.ajax({
+    $.ajax({
         url: '/dm/buckets/' + encodeURIComponent(id),
         type: 'DELETE'
     }).done(function (data) {
@@ -826,11 +693,11 @@ function deleteBucket(id) {
         }
     }).fail(function (err) {
         console.log('DELETE /dm/buckets/ call failed\n' + err.statusText);
-    }));
+    });
 }
 
 function getPublicUrl(id) {
-    MyVars.ajaxCalls.push($.ajax({
+    $.ajax({
         url: '/dm/files/' + encodeURIComponent(id) + '/publicurl',
         type: 'GET'
     }).done(function (data) {
@@ -838,7 +705,7 @@ function getPublicUrl(id) {
         alert(data.signedUrl);
     }).fail(function (err) {
         console.log('DELETE /dm/buckets/ call failed\n' + err.statusText);
-    }));
+    });
 }
 
 function filesTreeContextMenu(node, callback) {
@@ -891,191 +758,120 @@ function filesTreeContextMenu(node, callback) {
 }
 
 /////////////////////////////////////////////////////////////////
-// Hierarchy Tree / #forgeHierarchy
-// Shows the hierarchy of components in selected model
+// Zip contents Tree / #forgeZipContents
+// Shows the contents of the selected zip file
 /////////////////////////////////////////////////////////////////
 
-function showHierarchy(urn, guid, objectIds, rootFileName, fileExtType) {
-
-    // You need to
-    // 1) Post a job
-    // 2) Get matadata (find the model guid you need)
-    // 3) Get the hierarchy based on the urn and model guid
-
-    // Get svf export in order to get hierarchy and properties
-    // for the model
-    var format = 'svf';
-    askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType, function (manifest) {
-        initializeViewer(urn);
-        getMetadata(urn, function (guid) {
-            showProgress("Retrieving hierarchy...", "inprogress");
-
-            getHierarchy(urn, guid, function (data) {
-                showProgress("Retrieved hierarchy", "success");
-
-                for (var derId in manifest.derivatives) {
-                    var der = manifest.derivatives[derId];
-                    // We just have to make sure there is an svf
-                    // translation, but the viewer will find it
-                    // from the urn
-                    if (der.outputType === 'svf') {
-
-                        //initializeViewer(urn);
-                    }
-                }
-
-                prepareHierarchyTree(urn, guid, data.data);
-            });
-
-        }, function () {
-
-        });
-    });
+function showZipContents(id) {
+    startCancellableOperation()
+    showProgress("Fetching zip contents...", "inprogress")
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+        url: '/da/zipcontents/' + encodeURIComponent(id),
+        type: 'GET'
+    }).done(function (data) {
+        console.log(data);
+        prepareZipContentsTree(data)  
+        cleanupCancellableOperation()
+        showProgress("Fetched zip content", 'success');      
+    }).fail(function (err) {
+        if (!MyVars.cancellableOperation.keepTrying) {
+            showProgress("Cancelled getting zip content", 'failed');
+        } else {
+            showProgress("Failed to get zip content", 'failed');
+        }
+        cleanupCancellableOperation()
+        console.log('GET /da/zipcontents/ call failed\n' + err.statusText);
+    }));    
 }
 
-function addHierarchy(nodes) {
+function prepareForTree(nodes) {
     for (var nodeId in nodes) {
         var node = nodes[nodeId];
+        node.text = node.name
 
-        // We are also adding properties below that
-        // this function might iterate over and we should skip
-        // those nodes
-        if (node.type && node.type === 'property' || node.type === 'properties') {
-            // skip this node
-            var str = "";
-        } else {
-            node.text = node.name;
-            node.children = node.objects;
-            if (node.objectid === undefined) {
-                node.type = 'dunno'
-            } else {
-                node.id = node.objectid;
-                node.type = 'object'
-            }
-            addHierarchy(node.objects);
+        if (node.children) {
+            prepareForTree(node.children);
         }
-    }
+    }       
 }
 
-function prepareHierarchyTree(urn, guid, json) {
-    // Convert data to expected format
-    addHierarchy(json.objects);
-
-    // Enable the hierarchy related controls
-    $("#forgeFormats").removeAttr('disabled');
-    $("#downloadExport").removeAttr('disabled');
-
-    // Store info of selected item
-    MyVars.selectedUrn = urn;
-    MyVars.selectedGuid = guid;
+function prepareZipContentsTree(json) {
+    prepareForTree(json)
 
     // init the tree
-    $('#forgeHierarchy').jstree({
+    $('#forgeZipContents').jstree({
         'core': {
             'check_callback': true,
             'themes': { "icons": true },
-            'data': json.objects
+            'data': json
         },
         'checkbox': {
-            'tie_selection': false,
-            "three_state": true,
             'whole_node': false
         },
         'types': {
             'default': {
                 'icon': 'glyphicon glyphicon-cloud'
             },
-            'object': {
-                'icon': 'glyphicon glyphicon-save-file'
+            'file': {
+                'icon': 'glyphicon glyphicon-file'
+            },
+            'folder': {
+                'icon': 'glyphicon glyphicon-folder-open'
             }
         },
-        "plugins": ["types", "sort", "checkbox", "ui", "themes", "contextmenu"],
+        "plugins": ["types", "sort", "ui", "themes", "contextmenu"],
         'contextmenu': {
-            'select_node': false,
-            'items': hierarchyTreeContextMenu
+            'select_node': true,
+            'items': zipContentsTreeContextMenu
         }
     }).bind("select_node.jstree", function (evt, data) {
+        // Just open the children of the node, so that it's easier
+        // to find the actual versions
+        $('#forgeZipContents').jstree("open_node", data.node);
+
         if (data.node.type === 'object') {
             var urn = MyVars.selectedUrn;
             var guid = MyVars.selectedGuid;
             var objectId = data.node.original.objectid;
 
             // Empty the property tree
-            $('#forgeProperties').empty().jstree('destroy');
+            $('#forgeModelParams').empty().jstree('destroy');
 
             fetchProperties(urn, guid, function (props) {
                 preparePropertyTree(urn, guid, objectId, props);
                 selectInViewer([objectId]);
             });
         }
-    }).bind("check_node.jstree uncheck_node.jstree", function (evt, data) {
-        // To avoid recursion we are checking if the changes are
-        // caused by a viewer selection which is calling
-        // selectInHierarchyTree()
-        if (!MyVars.selectingInHierarchyTree) {
-            var elem = $('#forgeHierarchy');
-            var nodeIds = elem.jstree("get_checked", null, true);
-
-            // Convert from strings to numbers
-            var objectIds = [];
-            $.each(nodeIds, function (index, value) {
-                objectIds.push(parseInt(value, 10));
-            });
-
-            selectInViewer(objectIds);
-        }
     });
 }
 
-function selectInHierarchyTree(objectIds) {
-    MyVars.selectingInHierarchyTree = true;
+function zipContentsTreeContextMenu(node, callback) {
+    let parts = node.text.split('.')
+    let extension = (parts.length > 1) ? parts[parts.length - 1] : "";
 
-    try {
-        var tree = $("#forgeHierarchy").jstree();
-
-        // First remove all the selection
-        tree.uncheck_all();
-
-        // Now select the newly selected items
-        for (var key in objectIds) {
-            var id = objectIds[key];
-
-            // Select the node
-            tree.check_node(id);
-
-            // Make sure that it is visible for the user
-            tree._open_to(id);
+    if (extension === "ipj") {
+        return {
+            "useAsProject": {
+                "label": "Use project file",
+                "action": function (obj) {
+                }
+            }
         }
-    } catch (ex) { }
-
-    MyVars.selectingInHierarchyTree = false;
-}
-
-function hierarchyTreeContextMenu(node, callback) {
-    var menuItems = {};
-
-    var menuItem = {
-        "label": "Select in Fusion",
-        "action": function (obj) {
-            var path = $("#forgeHierarchy").jstree().get_path(node, '/');
-            console.log(path);
-
-            // Open this in the browser:
-            // fusion360://command=open&file=something&properties=MyCustomPropertyValues
-            var url = "fusion360://command=open&file=something&properties=" + encodeURIComponent(path);
-            $("#fusionLoader").attr("src", url);
+    } else if (extension !== "") {
+        return {
+            "useAsRoot": {
+                "label": "Use as root file",
+                "action": function (obj) {
+                }
+            }
         }
-    };
-    menuItems[0] = menuItem;
-
-    //callback(menuItems);
-
-    //return menuItems;
-    return null; // for the time being
+    }
+    
+    return null; 
 }
 
 /////////////////////////////////////////////////////////////////
-// Property Tree / #forgeProperties
+// Property Tree / #forgeModelParams
 // Shows the properties of the selected sub-component
 /////////////////////////////////////////////////////////////////
 
@@ -1084,10 +880,10 @@ function hierarchyTreeContextMenu(node, callback) {
 // hierarchy tree we can reuse it instead of sending out another
 // http request
 function fetchProperties(urn, guid, onsuccess) {
-    var props = $("#forgeProperties").data("forgeProperties");
+    var props = $("#forgeModelParams").data("forgeModelParams");
     if (!props) {
         getProperties(urn, guid, function (data) {
-            $("#forgeProperties").data("forgeProperties", data.data);
+            $("#forgeModelParams").data("forgeModelParams", data.data);
             onsuccess(data.data);
         })
     } else {
@@ -1134,7 +930,7 @@ function preparePropertyTree(urn, guid, objectId, props) {
     addProperties(data, props.collection);
 
     // init the tree
-    $('#forgeProperties').jstree({
+    $('#forgeModelParams').jstree({
         'core': {
             'check_callback': true,
             'themes': { "icons": true },
@@ -1210,8 +1006,7 @@ function addSelectionListener(viewer) {
     viewer.addEventListener(
         Autodesk.Viewing.SELECTION_CHANGED_EVENT,
         function (event) {
-            selectInHierarchyTree(event.dbIdArray);
-
+            
             var dbId = event.dbIdArray[0];
             if (dbId) {
                 viewer.getProperties(dbId, function (props) {
@@ -1274,7 +1069,9 @@ function showProgress(text, status) {
         newClasses = 'btn btn-danger';
     } else if (status === 'inprogress' || status === 'pending') {
         newClasses = 'btn btn-warning';
-        newText += " (Click to stop)";
+        if (MyVars.cancellableOperation) {
+            newText += " (Click to stop)";
+        }
     } else if (status === 'success') {
         newClasses = 'btn btn-success';
     } else {
