@@ -394,6 +394,10 @@ function askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType,
                 showProgress("File translated", "success");
                 onsuccess(res);
             });
+        } else {
+            cleanupCancellableOperation();
+            showProgress(err.responseText, "failed");
+            console.log('Translation failed');
         }
     }).fail(function (err) {
         cleanupCancellableOperation();
@@ -472,11 +476,13 @@ function getManifest(urn, onsuccess) {
                 }
             } else {
                 showProgress("Translation completed", data.status);
+                cleanupCancellableOperation()
                 onsuccess(data);
             }
             // if it's a failed translation best thing is to delete it
         } else {
             showProgress("Translation failed", data.status);
+            cleanupCancellableOperation()
             // Should we do automatic manifest deletion in case of a failed one?
             //delManifest(urn, function () {});
         }
@@ -486,6 +492,7 @@ function getManifest(urn, onsuccess) {
         } else {
             showProgress("Translation failed", 'failed');
         }
+        cleanupCancellableOperation()
         console.log('GET /api/manifest call failed\n' + err.statusText);
     }));
 }
@@ -830,8 +837,12 @@ function zipContentsTreeContextMenu(node) {
                         $('#forgeZipContents').jstree(true).set_type(MyVars.rootFileNode.id, 'file');
                     }
 
-                    $('#forgeZipContents').jstree(true).set_type(node.id, 'used');
-                    MyVars.rootFileNode = node;
+                    if (MyVars.rootFileNode !== node) {
+                        $('#forgeZipContents').jstree(true).set_type(node.id, 'used');
+                        MyVars.rootFileNode = node;
+                    } else {
+                        MyVars.rootFileNode = undefined;
+                    }
                 }
             }
         }
@@ -847,13 +858,14 @@ function zipContentsTreeContextMenu(node) {
 /////////////////////////////////////////////////////////////////
 
 function showParams(id) {
-    startCancellableOperation()
-    showProgress("Fetching parameters...", "inprogress")
-    
+     
     if (!MyVars.rootFileNode) {
         alert("You have to select the root file you want the parameters from");
         return;
     }
+
+    startCancellableOperation()
+    showProgress("Fetching parameters...", "inprogress")
 
     let documentPath = $('#forgeZipContents').jstree().get_path(MyVars.rootFileNode, '/');
     let projectPath = (MyVars.projectFileNode) ? 
