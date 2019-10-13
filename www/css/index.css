@@ -42,6 +42,7 @@
 #forgeModelParams {
     height: 195px;  bottom: 0;
     border-top-width: 1px; border-top-color: silver; border-top-style: solid;
+    padding: 10px;
 }
 #forgeCreateBucket {
     height: 135px;   bottom: 0px;

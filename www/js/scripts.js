@@ -2,8 +2,45 @@ var MyVars = {
 };
 
 $(document).ready(function () {
-    //debugger;
-    // check URL params
+    fillCredentialControls();
+
+    $("#createBucket").click(function (evt) {
+        createBucket();
+    });
+
+    $("#forgeUploadHidden").change(function (evt) {
+        startCancellableOperation()
+        showProgress("Uploading file... ", "inprogress");
+        uploadChunks(this.files[0]);
+    });
+
+    $("#showZipContents").click(function (evt) {
+        showZipContents(MyVars.selectedNode.original.id);
+    });
+
+    $("#translate").click(function (evt) {
+        translate();
+    });
+
+    $("#showParams").click(function (evt) {
+        showParams(MyVars.selectedNode.original.id);
+    });
+
+    $("#uploadFile").click(function (evt) {
+        evt.preventDefault();
+        $("#forgeUploadHidden").trigger("click");
+    });
+
+    $("#authenticate").click(function () {
+        authenticate();
+    });
+
+    $('#progressInfo').click(function () {
+        cleanupCancellableOperation()
+    });
+});
+
+function fillCredentialControls() {
     var url = new URL(window.location.href);
     var client_id = url.searchParams.get("client_id");
     if (client_id) {
@@ -13,201 +50,161 @@ $(document).ready(function () {
     if (client_secret) {
         $("#client_secret").val(client_secret);
     }
+}
 
-    $("#createBucket").click(function (evt) {
-        // adamnagy_2017_06_14
-        var bucketName = $("#bucketName").val()
-        var bucketType = $("#bucketType").val()
-        MyVars.cancellableOperation.ajaxCalls.push($.ajax({
-            url: '/dm/buckets',
-            type: 'POST',
-            contentType: 'application/json',
-            dataType: 'json',
-            data: JSON.stringify({
-                bucketName: bucketName,
-                bucketType: bucketType
-            })
-        }).done(function (data) {
-            console.log('Response' + data);
-            showProgress("Bucket created", "success")
-            $('#forgeFiles').jstree(true).refresh()
-        }).fail(function (xhr, ajaxOptions, thrownError) {
-            console.log('Bucket creation failed!')
-            showProgress("Could not create bucket", "failed")
-        }));
+function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
     });
+}
 
-    function uuidv4() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
-    function updateAccessToken() {
-        return new Promise((resolve, reject) => {
-            get2LegToken(function (token) {
-                MyVars.token2Leg = token;
-                resolve();
-            })
-        })
-    }
-
-    function uploadChunk(fileName, folderId, sessionId, range, readerResult) {
-        return new Promise((resolve, reject) => {
-            console.log("uploadChunk [before]: sessionId = " + sessionId + ", range = " + range);
-
-            MyVars.cancellableOperation.ajaxCalls.push($.ajax({
-                url: "/dm/chunks",
-                type: "POST",
-                headers: {
-                    'Content-Type': 'application/octet-stream',
-                    'x-file-name': fileName,
-                    'id': folderId,
-                    'sessionid': sessionId,
-                    'range': range
-                },
-                processData: false,
-                data: readerResult                     // d is the chunk got by readAsBinaryString(...)
-            }).done(function (response) {           // if 'd' is uploaded successfully then ->
-                console.log("uploadChunk [done]: sessionId = " + sessionId + ", range = " + range);
-                resolve(response)
-            }).fail(function (error) {
-                console.log("uploadChunk [fail]: sessionId = " + sessionId + ", range = " + range);
-                reject(error)
-            }));
-        })
-    }
-
-    async function readChunk(file, start, end, total) {
-        return new Promise((resolve, reject) => {
-            var reader = new FileReader();
-            var blob = file.slice(start, end);
-
-            reader.onload = function (e) {
-                var currentStart = start
-                var currentEnd = start + e.loaded - 1;
-                var range = 'bytes ' + currentStart + "-" + currentEnd + "/" + total
-
-                resolve({ readerResult: reader.result, range: range });
-            };
-
-            reader.readAsArrayBuffer(blob);
-        });
-    }
-
-    async function uploadChunks(file) {
-        const retryMax = 3;
-        const step = 2 * 1024 * 1024; // 2 MB suggested
-        const total = file.size;    // total size of file
-        const folderId = MyVars.selectedNode.id;
-        const fileName = file.name;
-        const sessionId = uuidv4();
-        const stepsMax = Math.floor(total / step) + 1;
-        let stepsCount = 0;
-
-        let createPromise = function (start, end) {
-            console.log(`createPromise: ${start} - ${end}`);
-            return new Promise(async (resolve, reject) => {
-                let retryCount = 0;
-
-                console.log(`runPromise: ${start} - ${end}`);
-                let resRead = await readChunk(file, start, end, total);
-
-                while (true) {
-                    try {
-                        if (!MyVars.cancellableOperation.keepTrying) {
-                            reject(false);
-                            return;
-                        }
-
-                        console.log(`before uploadChunk: retryCount =  ${retryCount}`);
-                        let resUpload = await uploadChunk(fileName, folderId, sessionId, resRead.range, resRead.readerResult);
-                        showProgress("Uploading file... " + Math.ceil(++stepsCount / stepsMax * 100).toString() + "%", "inprogress");
-                        resolve(true);
-                        return;
-                    } catch {
-                        if (++retryCount > retryMax) {
-                            reject(false);
-                            return;
-                        }
-
-                        await updateAccessToken();
-                    }
-                }
-            });
-        }
-
-        let promises = [];
-        for (let start = 0; start < total; start += step) {
-            promises.push(createPromise(start, start + step));
-        }
-
-        // Whether some failed or not, let's wait for all of them to return resolve or reject
-        Promise.allSettled(promises)
-            .then((results) => {
-                let failed = results.find((item) => {
-                    return item.status === 'rejected';
-                })
-
-                if (failed) {
-                    if (MyVars.cancellableOperation.keepTrying) {
-                        console.log("uploadChunks >> fail");
-                        showProgress("Upload failed", "failed");
-                    } else {
-                        console.log("uploadChunks >> cancelled");
-                        showProgress("Upload cancelled", "failed");
-                    }
-                } else {
-                    console.log("uploadChunks >> done");
-                    showProgress("File uploaded", "success");
-                    $('#forgeFiles').jstree(true).refresh();
-                }
-                
-                $("#forgeUploadHidden").val('');
-                cleanupCancellableOperation()
-            })
-    }
-
-    $("#forgeUploadHidden").change(function (evt) {
-        startCancellableOperation()
-        showProgress("Uploading file... ", "inprogress");
-        uploadChunks(this.files[0]);
-    });
-
-    $("#showZipContents").click(function (evt) {
-        // Show zip contents
-        showZipContents(MyVars.selectedNode.original.id);
-    });
-
-    var upload = $("#uploadFile").click(function (evt) {
-        evt.preventDefault();
-        $("#forgeUploadHidden").trigger("click");
-    });
-
-    var auth = $("#authenticate")
-    auth.click(function () {
-        // Get the tokens
+function updateAccessToken() {
+    return new Promise((resolve, reject) => {
         get2LegToken(function (token) {
-            var auth = $("#authenticate");
-
             MyVars.token2Leg = token;
-            console.log('Returning new 3 legged token (User Authorization): ' + MyVars.token2Leg);
-            showProgress()
+            resolve();
+        })
+    })
+}
 
-            auth.html('You\'re logged in');
+function uploadChunk(fileName, folderId, sessionId, range, readerResult) {
+    return new Promise((resolve, reject) => {
+        console.log("uploadChunk [before]: sessionId = " + sessionId + ", range = " + range);
 
-            // Fill the tree with A360 items
-            prepareFilesTree();
-        }, function (err) {
-            showProgress(err.responseText, 'failed');
+        MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+            url: "/dm/chunks",
+            type: "POST",
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                'x-file-name': fileName,
+                'id': folderId,
+                'sessionid': sessionId,
+                'range': range
+            },
+            processData: false,
+            data: readerResult                     // d is the chunk got by readAsBinaryString(...)
+        }).done(function (response) {           // if 'd' is uploaded successfully then ->
+            console.log("uploadChunk [done]: sessionId = " + sessionId + ", range = " + range);
+            resolve(response)
+        }).fail(function (error) {
+            console.log("uploadChunk [fail]: sessionId = " + sessionId + ", range = " + range);
+            reject(error)
+        }));
+    })
+}
+
+async function readChunk(file, start, end, total) {
+    return new Promise((resolve, reject) => {
+        var reader = new FileReader();
+        var blob = file.slice(start, end);
+
+        reader.onload = function (e) {
+            var currentStart = start
+            var currentEnd = start + e.loaded - 1;
+            var range = 'bytes ' + currentStart + "-" + currentEnd + "/" + total
+
+            resolve({ readerResult: reader.result, range: range });
+        };
+
+        reader.readAsArrayBuffer(blob);
+    });
+}
+
+async function uploadChunks(file) {
+    const retryMax = 3;
+    const step = 2 * 1024 * 1024; // 2 MB suggested
+    const total = file.size;    // total size of file
+    const folderId = MyVars.selectedNode.id;
+    const fileName = file.name;
+    const sessionId = uuidv4();
+    const stepsMax = Math.floor(total / step) + 1;
+    let stepsCount = 0;
+
+    let createPromise = function (start, end) {
+        console.log(`createPromise: ${start} - ${end}`);
+        return new Promise(async (resolve, reject) => {
+            let retryCount = 0;
+
+            console.log(`runPromise: ${start} - ${end}`);
+            let resRead = await readChunk(file, start, end, total);
+
+            while (true) {
+                try {
+                    if (!MyVars.cancellableOperation.keepTrying) {
+                        reject(false);
+                        return;
+                    }
+
+                    console.log(`before uploadChunk: retryCount =  ${retryCount}`);
+                    let resUpload = await uploadChunk(fileName, folderId, sessionId, resRead.range, resRead.readerResult);
+                    showProgress("Uploading file... " + Math.ceil(++stepsCount / stepsMax * 100).toString() + "%", "inprogress");
+                    resolve(true);
+                    return;
+                } catch {
+                    if (++retryCount > retryMax) {
+                        reject(false);
+                        return;
+                    }
+
+                    await updateAccessToken();
+                }
+            }
         });
-    });
+    }
 
-    $('#progressInfo').click(function () {
-        cleanupCancellableOperation()
-    });
-});
+    let promises = [];
+    for (let start = 0; start < total; start += step) {
+        promises.push(createPromise(start, start + step));
+    }
+
+    // Whether some failed or not, let's wait for all of them to return resolve or reject
+    Promise.allSettled(promises)
+        .then((results) => {
+            let failed = results.find((item) => {
+                return item.status === 'rejected';
+            })
+
+            if (failed) {
+                if (MyVars.cancellableOperation.keepTrying) {
+                    console.log("uploadChunks >> fail");
+                    showProgress("Upload failed", "failed");
+                } else {
+                    console.log("uploadChunks >> cancelled");
+                    showProgress("Upload cancelled", "failed");
+                }
+            } else {
+                console.log("uploadChunks >> done");
+                showProgress("File uploaded", "success");
+                $('#forgeFiles').jstree(true).refresh();
+            }
+
+            $("#forgeUploadHidden").val('');
+            cleanupCancellableOperation()
+        })
+}
+
+function createBucket() {
+    var bucketName = $("#bucketName").val()
+    var bucketType = $("#bucketType").val()
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+        url: '/dm/buckets',
+        type: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({
+            bucketName: bucketName,
+            bucketType: bucketType
+        })
+    }).done(function (data) {
+        console.log('Response' + data);
+        showProgress("Bucket created", "success")
+        $('#forgeFiles').jstree(true).refresh()
+    }).fail(function (xhr, ajaxOptions, thrownError) {
+        console.log('Bucket creation failed!')
+        showProgress("Could not create bucket", "failed")
+    }));
+}
 
 function cleanupCancellableOperation() {
     if (MyVars.cancellableOperation) {
@@ -217,13 +214,13 @@ function cleanupCancellableOperation() {
         MyVars.cancellableOperation.ajaxCalls.map((ajaxCall) => {
             ajaxCall.abort();
         });
-        
+
         MyVars.cancellableOperation = undefined;
-    }      
+    }
 }
 
 function startCancellableOperation() {
-    MyVars.cancellableOperation = { ajaxCalls: [], keepTrying: true } 
+    MyVars.cancellableOperation = { ajaxCalls: [], keepTrying: true }
 }
 
 function base64encode(str) {
@@ -258,7 +255,6 @@ function logoff() {
 }
 
 function get2LegToken(onSuccess, onError) {
-
     if (onSuccess) {
         var client_id = $('#client_id').val();
         var client_secret = $('#client_secret').val();
@@ -284,6 +280,23 @@ function get2LegToken(onSuccess, onError) {
 
         return MyVars.token2Leg;
     }
+}
+
+function authenticate() {
+    get2LegToken(function (token) {
+        var auth = $("#authenticate");
+
+        MyVars.token2Leg = token;
+        console.log('Returning new 3 legged token (User Authorization): ' + MyVars.token2Leg);
+        showProgress()
+
+        auth.html('Logged in');
+
+        // Fill the tree with A360 items
+        prepareFilesTree();
+    }, function (err) {
+        showProgress(err.responseText, 'failed');
+    });
 }
 
 // http://stackoverflow.com/questions/4068373/center-a-popup-window-on-screen
@@ -337,47 +350,14 @@ function isArraySame(arr1, arr2) {
     return (arr1.sort().join(',') === arr2.sort().join(','));
 }
 
-function getDerivativeUrns(derivative, format, getThumbnail, objectIds) {
-    console.log(
-        "getDerivativeUrns for derivative=" + derivative.outputType +
-        " and objectIds=" + (objectIds ? objectIds.toString() : "none"));
-    var res = [];
-    for (var childId in derivative.children) {
-        var child = derivative.children[childId];
-        // using toLowerCase to handle inconsistency
-        if (child.role === '3d' || child.role.toLowerCase() === format) {
-            if (isArraySame(child.objectIds, objectIds)) {
-                // Some formats like svf might have children
-                if (child.children) {
-                    for (var subChildId in child.children) {
-                        var subChild = child.children[subChildId];
-
-                        if (subChild.role === 'graphics') {
-                            res.push(subChild.urn);
-                            if (!getThumbnail)
-                                return res;
-                        } else if (getThumbnail && subChild.role === 'thumbnail') {
-                            res.push(subChild.urn);
-                            return res;
-                        }
-                    }
-                } else {
-                    res.push(child.urn);
-                    return res;
-                }
-            }
-        }
-    }
-
-    return null;
-}
-
 // OBJ: guid & objectIds are also needed
 // SVF, STEP, STL, IGES:
 // Posts the job then waits for the manifest and then download the file
 // if it's created
 function askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType, onsuccess) {
     console.log("askForFileType " + format + " for urn=" + urn);
+    startCancellableOperation();
+
     var advancedOptions = {
         'stl': {
             "format": "binary",
@@ -410,13 +390,34 @@ function askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType,
         if (data.result === 'success' // newly submitted data
             || data.result === 'created') { // already submitted data
             getManifest(urn, function (res) {
+                cleanupCancellableOperation();
+                showProgress("File translated", "success");
                 onsuccess(res);
             });
         }
     }).fail(function (err) {
+        cleanupCancellableOperation();
         showProgress(err.responseText, "failed");
         console.log('/md/export call failed\n' + err.statusText);
     }));
+}
+
+function translate() {
+    if (!MyVars.selectedNode) {
+        alert("A file needs to be selected!");
+        return;
+    }
+
+    var ext = getFileType(MyVars.selectedNode.text);
+    if (!MyVars.rootFileNode && ext === 'zip') {
+        alert('You need to provide a root file when translating a zip');
+        return;
+    }
+
+    let rootFilename = (MyVars.rootFileNode) ? MyVars.rootFileNode.text : "";
+    askForFileType("svf", MyVars.selectedUrn, null, null, rootFilename, ext, (res) => {
+        initializeViewer(MyVars.selectedUrn);
+    })
 }
 
 // We need this in order to get an OBJ file for the model
@@ -445,56 +446,6 @@ function getMetadata(urn, onsuccess, onerror) {
     }).fail(function (err) {
         console.log('GET /md/metadata call failed\n' + err.statusText);
         onerror();
-    }));
-}
-
-function getHierarchy(urn, guid, onsuccess) {
-    console.log("getHierarchy for urn=" + urn + " and guid=" + guid);
-    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
-        url: '/md/hierarchy',
-        type: 'GET',
-        data: { urn: urn, guid: guid }
-    }).done(function (data) {
-        console.log(data);
-
-        // If it's 'accepted' then it's not ready yet
-        if (data.result === 'accepted') {
-            // Let's try again
-            if (MyVars.cancellableOperation.keepTrying) {
-                window.setTimeout(function () {
-                    getHierarchy(urn, guid, onsuccess);
-                }, 500
-                );
-            } else {
-                cleanupCancellableOperation()
-            }
-
-            return;
-        }
-
-        // We got what we want
-        if (onsuccess !== undefined) {
-            onsuccess(data);
-        }
-    }).fail(function (err) {
-        console.log('GET /md/hierarchy call failed\n' + err.statusText);
-    }));
-}
-
-function getProperties(urn, guid, onsuccess) {
-    console.log("getProperties for urn=" + urn + " and guid=" + guid);
-    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
-        url: '/md/properties',
-        type: 'GET',
-        data: { urn: urn, guid: guid }
-    }).done(function (data) {
-        console.log(data);
-
-        if (onsuccess !== undefined) {
-            onsuccess(data);
-        }
-    }).fail(function (err) {
-        console.log('GET /api/properties call failed\n' + err.statusText);
     }));
 }
 
@@ -530,7 +481,11 @@ function getManifest(urn, onsuccess) {
             //delManifest(urn, function () {});
         }
     }).fail(function (err) {
-        showProgress("Translation failed", 'failed');
+        if (!MyVars.cancellableOperation.keepTrying) {
+            showProgress("Translation cancelled", 'failed');
+        } else {
+            showProgress("Translation failed", 'failed');
+        }
         console.log('GET /api/manifest call failed\n' + err.statusText);
     }));
 }
@@ -770,9 +725,9 @@ function showZipContents(id) {
         type: 'GET'
     }).done(function (data) {
         console.log(data);
-        prepareZipContentsTree(data)  
+        prepareZipContentsTree(data)
         cleanupCancellableOperation()
-        showProgress("Fetched zip content", 'success');      
+        showProgress("Fetched zip content", 'success');
     }).fail(function (err) {
         if (!MyVars.cancellableOperation.keepTrying) {
             showProgress("Cancelled getting zip content", 'failed');
@@ -781,7 +736,7 @@ function showZipContents(id) {
         }
         cleanupCancellableOperation()
         console.log('GET /da/zipcontents/ call failed\n' + err.statusText);
-    }));    
+    }));
 }
 
 function prepareForTree(nodes) {
@@ -792,7 +747,7 @@ function prepareForTree(nodes) {
         if (node.children) {
             prepareForTree(node.children);
         }
-    }       
+    }
 }
 
 function prepareZipContentsTree(json) {
@@ -817,6 +772,9 @@ function prepareZipContentsTree(json) {
             },
             'folder': {
                 'icon': 'glyphicon glyphicon-folder-open'
+            },
+            'used': {
+                'icon': 'glyphicon glyphicon-ok'
             }
         },
         "plugins": ["types", "sort", "ui", "themes", "contextmenu"],
@@ -845,7 +803,7 @@ function prepareZipContentsTree(json) {
     });
 }
 
-function zipContentsTreeContextMenu(node, callback) {
+function zipContentsTreeContextMenu(node) {
     let parts = node.text.split('.')
     let extension = (parts.length > 1) ? parts[parts.length - 1] : "";
 
@@ -854,6 +812,12 @@ function zipContentsTreeContextMenu(node, callback) {
             "useAsProject": {
                 "label": "Use project file",
                 "action": function (obj) {
+                    if (MyVars.projectFileNode) {
+                        $('#forgeZipContents').jstree(true).set_type(MyVars.projectFileNode.id, 'file');
+                    }
+
+                    $('#forgeZipContents').jstree(true).set_type(node.id, 'used');
+                    MyVars.projectFileNode = node;
                 }
             }
         }
@@ -862,12 +826,100 @@ function zipContentsTreeContextMenu(node, callback) {
             "useAsRoot": {
                 "label": "Use as root file",
                 "action": function (obj) {
+                    if (MyVars.rootFileNode) {
+                        $('#forgeZipContents').jstree(true).set_type(MyVars.rootFileNode.id, 'file');
+                    }
+
+                    $('#forgeZipContents').jstree(true).set_type(node.id, 'used');
+                    MyVars.rootFileNode = node;
                 }
             }
         }
     }
+
+    return null;
+}
+
+
+/////////////////////////////////////////////////////////////////
+// Model parameters list / #forgeModelParams
+// Shows the user parameters available in the model
+/////////////////////////////////////////////////////////////////
+
+function showParams(id) {
+    startCancellableOperation()
+    showProgress("Fetching parameters...", "inprogress")
     
-    return null; 
+    if (!MyVars.rootFileNode) {
+        alert("You have to select the root file you want the parameters from");
+        return;
+    }
+
+    let documentPath = $('#forgeZipContents').jstree().get_path(MyVars.rootFileNode, '/');
+    let projectPath = (MyVars.projectFileNode) ? 
+        $('#forgeZipContents').jstree().get_path(MyVars.projectFileNode, '/') : '';    
+
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+        url: `/da/params/${encodeURIComponent(id)}?documentPath=${documentPath}&projectPath=${encodeURIComponent(projectPath)}`,
+        type: 'GET'
+    }).done(function (data) {
+        console.log(data);
+        prepareParamsList(data)
+        cleanupCancellableOperation()
+        showProgress("Fetched parameters", 'success');
+    }).fail(function (err) {
+        if (!MyVars.cancellableOperation.keepTrying) {
+            showProgress("Cancelled getting parameters", 'failed');
+        } else {
+            showProgress("Failed to get parameters", 'failed');
+        }
+        cleanupCancellableOperation()
+        console.log('GET /da/params/ call failed\n' + err.statusText);
+    }));
+}
+
+function prepareParamsList(json) {
+    var parameters = $('#forgeModelParams');
+    parameters.html('');
+  
+    for (let key in json) {
+      let item = json[key];
+      let id = `parameters_${key}`;
+  
+      if (item.values && item.values.length > 0) {
+        parameters.append($(`
+          <div class="form-group">
+            <label for="${id}">${key}</label>
+            <select class="form-control" id="${id}"></select>
+          </div>`));
+        let select = $(`#${id}`);
+        for (let key2 in item.values) {
+          let value = item.values[key2];
+          select.append($('<option>', { value: value, text: value }))
+        }
+        // Activate current selection
+        select.val(item.value);
+      } else if (item.unit === "Boolean") {
+        parameters.append($(`
+          <div class="form-group">
+            <label for="${id}">${key}</label>
+            <select class="form-control" id="${id}">
+              <option value="True">True</option>
+              <option value="False">False</option>
+            </select>
+          </div>`));
+        let select = $(`#${id}`);
+        select.val(item.value);
+      } else {
+        parameters.append($(`
+          <div class="form-group">
+            <label for="${id}">${key}</label>
+            <input type="text" class="form-control" id="${id}" placeholder="Enter new ${key} value">
+          </div>`));
+        let input = $(`#${id}`);
+        input.val(item.value);
+      }
+    }
 }
 
 /////////////////////////////////////////////////////////////////
@@ -964,8 +1016,6 @@ function cleanupViewer() {
     if (MyVars.viewer && MyVars.viewer.model) {
         console.log("Unloading current model from Autodesk Viewer");
 
-        //MyVars.viewer.impl.unloadModel(MyVars.viewer.model);
-        //MyVars.viewer.impl.sceneUpdated(true);
         MyVars.viewer.tearDown();
         MyVars.viewer.setUp(MyVars.viewer.config);
     }
@@ -1006,7 +1056,7 @@ function addSelectionListener(viewer) {
     viewer.addEventListener(
         Autodesk.Viewing.SELECTION_CHANGED_EVENT,
         function (event) {
-            
+
             var dbId = event.dbIdArray[0];
             if (dbId) {
                 viewer.getProperties(dbId, function (props) {
@@ -1094,60 +1144,6 @@ function showProgress(text, status) {
         }
     }
 }
-
-MyVars.getAllProps = async function () {
-    var propTree = {};
-    var handled = [];
-    var getProps = async function (id, propNode) {
-        return new Promise(resolve => {
-            NOP_VIEWER.getProperties(id, props => {
-                resolve(props);
-            });
-        });
-    };
-
-    var getPropsRec = async function (id, propNode) {
-        var props = await getProps(id, propNode);
-        handled.push(props.dbId);
-        propNode['child_' + props.dbId] = props.properties;
-
-        for (var key in props.properties) {
-            var prop = props.properties[key];
-            // Avoid circular reference by checking if it's been
-            // handled already
-            if (prop.type === 11 && !handled.includes(prop.displayValue)) {
-                await getPropsRec(prop.displayValue, propNode['child_' + props.dbId]);
-            }
-        };
-    }
-
-    await getPropsRec(NOP_VIEWER.model.getRootId(), propTree);
-    console.log(propTree);
-}
-
-function getActiveConfigurationProperties(viewer) {
-    var dbIds = viewer.getSelection();
-
-    if (dbIds.length !== 1) {
-        alert("Select a single item first!");
-        return;
-    }
-
-    viewer.getProperties(dbIds[0], (props) => {
-        props.properties.forEach(prop => {
-            if (prop.displayName === "Active Configuration") {
-                viewer.getProperties(prop.displayValue, confProps => {
-                    console.log(confProps);
-                });
-
-                return;
-            }
-        })
-    })
-}
-
-
-
 
 // *******************************************
 // Property Inspector Extension

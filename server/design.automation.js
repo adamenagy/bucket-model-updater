@@ -624,7 +624,7 @@ router.get('/workitems/treeNode', async function(req, res) {
 router.get('/zipcontents/:id', async function(req, res) {
     var id = decodeURIComponent(req.params.id)
     var objectInfo = utils.getBucketKeyObjectName(id);
-    var jsonName = objectInfo.objectName + ".json";
+    var jsonName = objectInfo.objectName + ".contents";
     var tokenSession = new token(req.session);
     var credentials = tokenSession.getCredentials();
 
@@ -694,6 +694,104 @@ router.get('/zipcontents/:id', async function(req, res) {
     try {
         console.log("Fetching json file with info about the zip file's content");
         let data = await objects.getObject(objectInfo.bucketKey, jsonName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
+        res.json(data.body);
+    } catch (error) {
+        res.status(error.statusCode).end(error.statusMessage);
+    }
+});
+
+/////////////////////////////////////////////////////////////////
+// Get model parameters
+/////////////////////////////////////////////////////////////////
+
+router.get('/params/:id', async function(req, res) {
+    var id = decodeURIComponent(req.params.id)
+    var projectPath = decodeURIComponent(req.query.projectPath);
+    var documentPath = decodeURIComponent(req.query.documentPath);
+    var objectInfo = utils.getBucketKeyObjectName(id);
+    var paramName = objectInfo.objectName + ".params";
+    var tokenSession = new token(req.session);
+    var credentials = tokenSession.getCredentials();
+
+    // check if json file already exists and newer than the file
+    // it contains info about
+    var utcParam = 0;
+    var utcFile = 0;
+    var objects = new forgeSDK.ObjectsApi();
+    try {
+        console.log("Checking if json for zip file exists");
+        let data = await objects.getObjectDetails(objectInfo.bucketKey, paramName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        utcParam = data.body.lastModifiedDate;
+
+        console.log("Getting info about the zip file");
+        data = await objects.getObjectDetails(objectInfo.bucketKey, objectInfo.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        utcFile = data.body.lastModifiedDate;
+    } catch (error) {
+        console.log(error);
+    }
+
+    // if the json file is older than the file it has info about
+    // then lets fetch the info again
+    if (utcParam <= utcFile) {
+        console.log("Running job to get parameters of model into a json file...");
+
+        const getUrl = (bucketKey, objectName) => {
+            return `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${objectName}`
+        }
+
+        // run workitem
+        const activityId = "rGm0mO9jVSsD2yBEDk9MRtXQTwsa61y0.ExtractParams+prod";
+
+        documentPath = `\"documentPath\":\"inputFile/${documentPath}\"`;
+        projectPath = (projectPath !== '') ? `, \"projectPath\":\"inputFile/${projectPath}` : '';
+        var createReply = await createItem(req, "workitems", {
+            "activityId": activityId, 
+            "arguments": {
+                "inputFile": {
+                    "zip": true,
+                    "verb": "get",
+                    "localName": "inputFile",
+                    "url": getUrl(objectInfo.bucketKey, objectInfo.objectName),
+                    "headers": {
+                        "Authorization": "Bearer " + credentials.access_token,
+                        "Content-type": "application/octet-stream"
+                    }
+                },
+                "inputParams": {
+                    "verb": "get",
+                    "localName": "inputParams.json",
+                    "url": `data:application/json,{${documentPath}${projectPath}}`
+                },
+                "documentParams": {
+                    "verb": "put",
+                    "localName": "documentParams.json",
+                    "url": getUrl(objectInfo.bucketKey, paramName),
+                    "headers": {
+                        "Authorization": "Bearer " + credentials.access_token,
+                        "Content-type": "application/octet-stream"
+                    }
+                }
+            }
+        });
+
+        // check status
+        let getReply = { status: "pending"}
+        while (getReply.status === "pending" || getReply.status === "inprogress") {
+            getReply = await getItem(req, "workitems", createReply.id);
+            await utils.setTimeoutPromise(1000);
+        }
+
+        if (getReply.status !== "success") {
+            console.log(getReply.reportUrl);
+            res.statusCode(500).end(getReply.status);
+            return;
+        }
+    } 
+
+    // fetch json document
+    try {
+        console.log("Fetching json file with info about the parameters in the model");
+        let data = await objects.getObject(objectInfo.bucketKey, paramName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
         res.json(data.body);
     } catch (error) {
         res.status(error.statusCode).end(error.statusMessage);
