@@ -26,6 +26,10 @@ $(document).ready(function () {
         showParams(MyVars.selectedNode.original.id);
     });
 
+    $("#updateModel").click(function (evt) {
+        updateModel(MyVars.selectedNode.original.id);
+    });
+
     $("#uploadFile").click(function (evt) {
         evt.preventDefault();
         $("#forgeUploadHidden").trigger("click");
@@ -370,6 +374,8 @@ function askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType,
         }
     };
 
+    let forceTranslate = $('#forceTranslate').hasClass('active');
+
     MyVars.cancellableOperation.ajaxCalls.push($.ajax({
         url: '/md/export',
         type: 'POST',
@@ -381,7 +387,8 @@ function askForFileType(format, urn, guid, objectIds, rootFileName, fileExtType,
                 format: format,
                 advanced: advancedOptions[format],
                 rootFileName: rootFileName,
-                fileExtType: fileExtType
+                fileExtType: fileExtType,
+                forceTranslate: forceTranslate
             }
         )
     }).done(function (data) {
@@ -911,6 +918,7 @@ function prepareParamsList(json) {
         }
         // Activate current selection
         select.val(item.value);
+        select.attr('originalValue', item.value);
       } else if (item.unit === "Boolean") {
         parameters.append($(`
           <div class="form-group">
@@ -922,6 +930,7 @@ function prepareParamsList(json) {
           </div>`));
         let select = $(`#${id}`);
         select.val(item.value);
+        select.attr('originalValue', item.value);
       } else {
         parameters.append($(`
           <div class="form-group">
@@ -930,8 +939,64 @@ function prepareParamsList(json) {
           </div>`));
         let input = $(`#${id}`);
         input.val(item.value);
+        input.attr('originalValue', item.value);
       }
     }
+}
+
+/////////////////////////////////////////////////////////////////
+// Update model parameters and show it in Viewer
+/////////////////////////////////////////////////////////////////
+
+function updateModel(id) {
+     
+    if (!MyVars.rootFileNode) {
+        alert("You have to select the file you want to update the parameters in");
+        return;
+    }
+
+    startCancellableOperation()
+    showProgress("Fetching viewables...", "inprogress")
+
+    let documentPath = $('#forgeZipContents').jstree().get_path(MyVars.rootFileNode, '/');
+    let projectPath = (MyVars.projectFileNode) ? 
+        $('#forgeZipContents').jstree().get_path(MyVars.projectFileNode, '/') : '';    
+
+    // go through list of parameters and collect what changed
+    var parameters = $('#forgeModelParams .form-control');
+    var json = {}; // collect what changed
+    for (let item of parameters) {
+        let oldVal = item.getAttribute('originalValue');
+        let newVal = item.value;
+
+        if (oldVal !== newVal) {
+            // id of controls is "parameters_" + <parameter name>
+            json[item.id.replace('parameters_', '')] = newVal;
+        }
+    }
+
+    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+        url: `/da/params/${encodeURIComponent(id)}?documentPath=${documentPath}&projectPath=${encodeURIComponent(projectPath)}`,
+        type: 'POST',
+        dataType: "json",
+        contentType: 'application/json',
+        data: JSON.stringify(json),
+        timeout: 9000000
+    }).done(function (data) {
+        console.log(data);
+        //prepareParamsList(data)
+        cleanupCancellableOperation()
+        showProgress("Fetched viewables", 'success');
+        initializeViewer('result.svf', true)
+    }).fail(function (err) {
+        if (!MyVars.cancellableOperation.keepTrying) {
+            showProgress("Cancelled getting viewables", 'failed');
+        } else {
+            showProgress("Failed to fetch viewables", 'failed');
+        }
+        cleanupCancellableOperation()
+        console.log('POST /da/params/ call failed\n' + err.statusText);
+    }));
 }
 
 /////////////////////////////////////////////////////////////////
@@ -1033,19 +1098,28 @@ function cleanupViewer() {
     }
 }
 
-function initializeViewer(urn) {
+function initializeViewer(urn, isProxy) {
     cleanupViewer();
 
     console.log("Launching Autodesk Viewer for: " + urn);
 
-    var options = {
-        document: 'urn:' + urn,
-        env: 'AutodeskProduction', //'AutodeskStaging', //'AutodeskProduction',
-        getAccessToken: get2LegToken
-    };
-
+    var options = {};
+    if (isProxy) {
+        options = {
+            document: urn,
+            env: 'AutodeskProduction', //'Local' //'AutodeskStaging', //'AutodeskProduction',
+            getAccessToken: get2LegToken
+        };
+    } else {
+        options = {
+            document: 'urn:' + urn,
+            env: 'AutodeskProduction', 
+            getAccessToken: get2LegToken
+        };
+    }
+    
     if (MyVars.viewer) {
-        loadDocument(MyVars.viewer, options.document);
+        loadDocument(MyVars.viewer, options.document, isProxy);
     } else {
         var viewerElement = document.getElementById('forgeViewer');
         var config = {
@@ -1057,8 +1131,8 @@ function initializeViewer(urn) {
             options,
             function () {
                 MyVars.viewer.start(); // this would be needed if we also want to load extensions
-                loadDocument(MyVars.viewer, options.document);
-                addSelectionListener(MyVars.viewer);
+                loadDocument(MyVars.viewer, options.document, isProxy);
+                //addSelectionListener(MyVars.viewer);
             }
         );
     }
@@ -1078,7 +1152,7 @@ function addSelectionListener(viewer) {
         });
 }
 
-function loadDocument(viewer, documentId) {
+function loadDocument(viewer, documentId, isProxy) {
     // Set the Environment to "Riverbank"
     //viewer.setLightPreset(8);
 
@@ -1086,26 +1160,37 @@ function loadDocument(viewer, documentId) {
     // override it and change it to something else
     //viewer.prefs.tag('ignore-producer');
 
-    Autodesk.Viewing.Document.load(
-        documentId,
-        // onLoad
-        function (doc) {
-            var geometryItems = doc.getRoot().search({ "role": "3d", "type": "geometry" });
+    console.log('loadDocument, isProxy = ' + isProxy.toString())
+    if (isProxy) {
+        let endpoint = window.location.origin + '/viewer_proxy';
+        
+		Autodesk.Viewing.endpoint.setEndpointAndApi (endpoint, 'modelDerivativeV2') ;
+			
+        viewer.loadModel(endpoint + "/" + documentId);
+    } else {
+        Autodesk.Viewing.endpoint.setEndpointAndApi ('https://developer.api.autodesk.com/', 'modelDerivativeV2') ;
+                
+        Autodesk.Viewing.Document.load(
+            documentId,
+            // onLoad
+            function (doc) {
+                var geometryItems = doc.getRoot().search({ "role": "3d", "type": "geometry" });
 
-            // Try 3d geometry first
-            if (geometryItems.length < 1) {
-                geometryItems.push(doc.getRoot().getDefaultGeometry())
+                // Try 3d geometry first
+                if (geometryItems.length < 1) {
+                    geometryItems.push(doc.getRoot().getDefaultGeometry())
+                }
+
+                viewer.loadDocumentNode(doc, geometryItems[0]).then(i => {
+                    // documented loaded, any action?
+                });
+            },
+            // onError
+            function (errorMsg) {
+                //showThumbnail(documentId.substr(4, documentId.length - 1));
             }
-
-            viewer.loadDocumentNode(doc, geometryItems[0]).then(i => {
-                // documented loaded, any action?
-            });
-        },
-        // onError
-        function (errorMsg) {
-            //showThumbnail(documentId.substr(4, documentId.length - 1));
-        }
-    )
+        )
+    } 
 }
 
 function selectInViewer(objectIds) {

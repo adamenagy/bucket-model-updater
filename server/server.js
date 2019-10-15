@@ -42,7 +42,6 @@ app.use(session({
 }));
 
 // prepare server routing
-app.use('/', express.static(__dirname + '/../www')); // redirect static calls
 app.use('/js', express.static(__dirname + '/../node_modules/bootstrap/dist/js')); // redirect static calls
 app.use('/js', express.static(__dirname + '/../node_modules/jquery/dist')); // redirect static calls
 app.use('/css', express.static(__dirname + '/../node_modules/bootstrap/dist/css')); // redirect static calls
@@ -54,10 +53,13 @@ var oauth = require('./oauth');
 var dm = require('./data.management');
 var md = require('./model.derivative');
 var da = require('./design.automation');
+var vp = require('./viewer.proxy');
 app.use('/', oauth); // redirect oauth API calls
 app.use('/da', da); // redirect our Design Automation API calls
 app.use('/dm', dm); // redirect our Data Management API calls
 app.use('/md', md); // redirect our Model Derivative API calls
+app.use('/viewer_proxy', vp);
+app.use('/', express.static(__dirname + '/../www')); // redirect static calls
 
 
 module.exports = app;

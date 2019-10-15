@@ -30,6 +30,22 @@ Token.prototype.setOAuth = function (oAuth) {
     this._session.oAuth = oAuth;
 };
 
+Token.prototype.getClientId = function () {
+    return this._session.clientId;
+}
+ 
+Token.prototype.setClientId = function (client_id) {
+    this._session.clientId = client_id;
+}
+
+Token.prototype.getFolderPath = function () {
+    return this._session.folderPath;
+}
+ 
+Token.prototype.setFolderPath = function (folder_path) {
+    this._session.folderPath = folder_path
+}
+
 Token.prototype.getCredentials = function () {
     return this._session.credentials;
 };
