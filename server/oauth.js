@@ -53,6 +53,7 @@ router.get('/user/token', function (req, res) {
 
               tokenSession.setCredentials(credentials);
               tokenSession.setOAuth(req);
+              tokenSession.setClientId(client_id);
 
               console.log('Token: ' + credentials.access_token);
             res.setHeader('Access-Control-Allow-Origin', '*');

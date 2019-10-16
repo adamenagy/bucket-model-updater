@@ -986,8 +986,12 @@ function updateModel(id) {
         console.log(data);
         //prepareParamsList(data)
         cleanupCancellableOperation()
-        showProgress("Fetched viewables", 'success');
-        initializeViewer('result.svf', true)
+        if (data.status === "pending" || data.status === "inprogress") {
+            showProgress("Job running. Click again to check progress", 'success');
+        } else {
+            showProgress("Fetched viewables", 'success');
+            initializeViewer('result.svf', true)
+        } 
     }).fail(function (err) {
         if (!MyVars.cancellableOperation.keepTrying) {
             showProgress("Cancelled getting viewables", 'failed');

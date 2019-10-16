@@ -17,7 +17,19 @@ var config = require('./config');
 
 var utils = require('./utils');
 
+var fs = require('fs');
+var path = require('path');
+
 var forgeSDK = require('forge-apis');
+
+const unzipper = require('unzipper');
+var AdmZip = require('adm-zip');
+
+var stream = require('stream');
+
+const crypto = require('crypto')
+
+
 
 async function daRequest(req, path, method, headers, body) {
     headers = headers || {};
@@ -742,8 +754,8 @@ router.get('/params/:id', async function(req, res) {
         // run workitem
         const activityId = "rGm0mO9jVSsD2yBEDk9MRtXQTwsa61y0.ExtractParams+prod";
 
-        documentPath = `\"documentPath\":\"inputFile/${documentPath}\"`;
-        projectPath = (projectPath !== '') ? `, \"projectPath\":\"inputFile/${projectPath}` : '';
+        documentPath = `"documentPath":"inputFile/${documentPath}"`;
+        projectPath = (projectPath !== '') ? `, "projectPath":"inputFile/${projectPath}"` : '';
         var createReply = await createItem(req, "workitems", {
             "activityId": activityId, 
             "arguments": {
@@ -783,7 +795,7 @@ router.get('/params/:id', async function(req, res) {
 
         if (getReply.status !== "success") {
             console.log(getReply.reportUrl);
-            res.statusCode(500).end(getReply.status);
+            res.status(500).end(getReply.status);
             return;
         }
     } 
@@ -795,6 +807,170 @@ router.get('/params/:id', async function(req, res) {
         res.json(data.body);
     } catch (error) {
         res.status(error.statusCode).end(error.statusMessage);
+    }
+});
+
+/////////////////////////////////////////////////////////////////
+// Update model parameters and get viewable
+/////////////////////////////////////////////////////////////////
+
+function getHash(text) {
+    return crypto.createHash('md5').update(text).digest("hex");
+}
+
+router.post('/params/:id', jsonParser, async function(req, res) {
+    var id = decodeURIComponent(req.params.id)
+    var projectPath = decodeURIComponent(req.query.projectPath);
+    var documentPath = decodeURIComponent(req.query.documentPath);
+    var objectInfo = utils.getBucketKeyObjectName(id);
+    let body = JSON.stringify(req.body);
+    let hash = getHash(body);
+    var viewableName = objectInfo.objectName + ".viewable." + hash;
+    var tokenSession = new token(req.session);
+    var credentials = tokenSession.getCredentials();
+
+    // check if a job is pending for it
+    req.session.jobs = req.session.jobs || {};
+    if (req.session.jobs[viewableName]) {
+        let getReply = await getItem(req, "workitems", req.session.jobs[viewableName]);
+        if (getReply.status === "pending" || getReply.status === "inprogress") {
+            res.json(getReply);
+
+            return;
+        } else {
+            // the job finished, so we can comntinue
+            delete req.session.jobs[viewableName];
+        }
+    }
+
+    // check if json file already exists and newer than the file
+    // it contains info about
+    var utcViewable = 0;
+    var utcFile = 0;
+    var objects = new forgeSDK.ObjectsApi();
+    try {
+        console.log("Checking if viewable for zip file exists");
+        let data = await objects.getObjectDetails(objectInfo.bucketKey, viewableName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        utcViewable = data.body.lastModifiedDate;
+
+        console.log("Getting info about the zip file");
+        data = await objects.getObjectDetails(objectInfo.bucketKey, objectInfo.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        utcFile = data.body.lastModifiedDate;
+    } catch (error) {
+        console.log(error);
+    }
+
+    // if the json file is older than the file it has info about
+    // then lets fetch the info again
+    if (utcViewable <= utcFile) {
+        console.log("Running job to update model...");
+
+        const getUrl = (bucketKey, objectName) => {
+            return `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${objectName}`
+        }
+
+        // run workitem
+        const activityId = "rGm0mO9jVSsD2yBEDk9MRtXQTwsa61y0.UpdateModel+prod";
+
+        documentPath = `"inputFile":"inputFile/${documentPath}"`;
+        projectPath = (projectPath !== '') ? `, "projectPath":"inputFile/${projectPath}"` : '';
+
+        let workitemBody = {
+            "activityId": activityId, 
+            "arguments": {
+                "inputFile": { 
+                    "verb": "get",
+                    "localName": "inputFile",
+                    "zip": true,
+                    "url": getUrl(objectInfo.bucketKey, objectInfo.objectName),
+                    "headers": {
+                        "Authorization": "Bearer " + credentials.access_token,
+                        "Content-type": "application/octet-stream"
+                    } 
+                },
+                "inputParams": {
+                    "verb": "get",
+                    "localName": "inputParams.json",
+                    "url": `data:application/json,{${documentPath}${projectPath}, "outputType":"svf"}`
+                },
+                "documentParams": {
+                    "verb": "get",
+                    "localName": "documentParams.json",
+                    "url": `data:application/json,${body}`
+                },
+                "viewable": {
+                    "verb": "put",
+                    "localName": "viewable.zip",
+                    "url": getUrl(objectInfo.bucketKey, viewableName),
+                    "headers": {
+                        "Authorization": "Bearer " + credentials.access_token,
+                        "Content-type": "application/octet-stream"
+                    }
+                }
+            }
+        };
+
+        var createReply = await createItem(req, "workitems", workitemBody);
+
+        // check status
+        /*
+        let getReply = { status: "pending"}
+        while (getReply.status === "pending" || getReply.status === "inprogress") {
+            getReply = await getItem(req, "workitems", createReply.id);
+            await utils.setTimeoutPromise(1000);
+        }
+
+        if (getReply.status !== "success") {
+            console.log(getReply.reportUrl);
+        }
+        */
+
+       let getReply = await getItem(req, "workitems", createReply.id);
+
+        if (getReply.status === "pending" || getReply.status === "inprogress") {
+            // it's not finished so let's just return
+            req.session.jobs[viewableName] = createReply.id;
+            res.json(getReply);
+
+            return;
+        } 
+    } 
+
+    // fetch viewable and unzip to temp folder
+    try {
+        let clientId = tokenSession.getClientId();
+        let folderPath = path.join(__dirname, "local_cache", clientId, hash);
+        tokenSession.setFolderPath(folderPath);
+
+        if (!fs.existsSync(folderPath)) {
+            console.log("Fetching viewables for updated model");
+            let data = await objects.getObject(objectInfo.bucketKey, viewableName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
+            console.log("Received viewables");
+            
+            let bufferStream = new stream.PassThrough();
+
+            bufferStream.end(data.body);
+
+            console.log("Extracting zip content to local drive");
+            bufferStream.pipe(unzipper.Extract({ path: folderPath }))
+                .on('complete', function(job) {
+                    console.log("Extracted zip content to local drive");
+                    res.json( { "status": "success" } );
+
+                    return;
+                });
+        } else {
+            console.log("Viewable already cached locally");
+            res.json( { "status": "success" } );
+
+            return;
+        }        
+    } catch (error) {
+        console.log("Failed to get viewable");
+        if (error.statusCode && error.statusMessage)
+            res.status(error.statusCode).json({ "status": "failed", "message": error.statusMessage });
+        else
+            res.status(500).json({ "status": "failed" });
     }
 });
 

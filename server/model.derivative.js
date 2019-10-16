@@ -168,7 +168,11 @@ router.post('/export', jsonParser, function (req, res) {
     if (!derivatives)
         return;
 
-    derivatives.translate({"input": input, "output": output}, { "xAdsForce": true }, tokenSession.getOAuth(), tokenSession.getCredentials())
+    let opts = {};
+    if (req.body.forceTranslate) {
+        opts.xAdsForce = true;
+    }     
+    derivatives.translate({"input": input, "output": output}, opts, tokenSession.getOAuth(), tokenSession.getCredentials())
         .then(function (data) {
             res.json(data.body);
         })
