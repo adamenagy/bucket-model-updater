@@ -191,7 +191,7 @@ async function uploadChunks(file) {
 function createBucket() {
     var bucketName = $("#bucketName").val()
     var bucketType = $("#bucketType").val()
-    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+    $.ajax({
         url: '/dm/buckets',
         type: 'POST',
         contentType: 'application/json',
@@ -207,7 +207,7 @@ function createBucket() {
     }).fail(function (xhr, ajaxOptions, thrownError) {
         console.log('Bucket creation failed!')
         showProgress("Could not create bucket", "failed")
-    }));
+    });
 }
 
 function cleanupCancellableOperation() {
@@ -250,12 +250,12 @@ function base64encode(str) {
 }
 
 function logoff() {
-    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+    $.ajax({
         url: '/user/logoff',
         success: function (oauthUrl) {
             location.href = oauthUrl;
         }
-    }));
+    });
 }
 
 function get2LegToken(onSuccess, onError) {
@@ -506,7 +506,7 @@ function getManifest(urn, onsuccess) {
 
 function delManifest(urn, onsuccess) {
     console.log("delManifest for urn=" + urn);
-    MyVars.cancellableOperation.ajaxCalls.push($.ajax({
+    $.ajax({
         url: '/md/manifests/' + urn,
         type: 'DELETE'
     }).done(function (data) {
@@ -519,7 +519,7 @@ function delManifest(urn, onsuccess) {
         }
     }).fail(function (err) {
         console.log('DELETE /api/manifest call failed\n' + err.statusText);
-    }));
+    });
 }
 
 /////////////////////////////////////////////////////////////////
@@ -1167,6 +1167,7 @@ function loadDocument(viewer, documentId, isProxy) {
     console.log('loadDocument, isProxy = ' + isProxy.toString())
     if (isProxy) {
         let endpoint = window.location.origin + '/viewer_proxy';
+        //let endpoint = 'https://developer.api.autodesk.com/oss/v2/buckets/adamenagy_viewables/objects';
         
 		Autodesk.Viewing.endpoint.setEndpointAndApi (endpoint, 'modelDerivativeV2') ;
 			
