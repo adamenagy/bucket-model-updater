@@ -831,6 +831,7 @@ router.post('/params/:id', jsonParser, async function(req, res) {
 
     // check if a job is pending for it
     req.session.jobs = req.session.jobs || {};
+    req.session.local = false;
     if (req.session.jobs[viewableName]) {
         let getReply = await getItem(req, "workitems", req.session.jobs[viewableName]);
         if (getReply.status === "pending" || getReply.status === "inprogress") {
@@ -947,18 +948,24 @@ router.post('/params/:id', jsonParser, async function(req, res) {
             let data = await objects.getObject(objectInfo.bucketKey, viewableName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
             console.log("Received viewables");
             
-            let bufferStream = new stream.PassThrough();
+            if (req.session.local) {
+                let bufferStream = new stream.PassThrough();
 
-            bufferStream.end(data.body);
+                bufferStream.end(data.body);
 
-            console.log("Extracting zip content to local drive");
-            bufferStream.pipe(unzipper.Extract({ path: folderPath }))
-                .on('complete', function(job) {
-                    console.log("Extracted zip content to local drive");
-                    res.json( { "status": "success" } );
+                console.log("Extracting zip content to local drive");
+                bufferStream.pipe(unzipper.Extract({ path: folderPath }))
+                    .on('complete', function(job) {
+                        console.log("Extracted zip content to local drive");
+                        res.json( { "status": "success" } );
 
-                    return;
-                });
+                        return;
+                    });
+            } else {
+                // push the content to a bucket
+
+            }
+            
         } else {
             console.log("Viewable already cached locally");
             res.json( { "status": "success" } );

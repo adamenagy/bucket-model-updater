@@ -254,7 +254,11 @@ router.get('/treeNode', function (req, res) {
             })
             .catch(function (error) {
                 console.log(error);
-                res.status(error.statusCode).end(error.statusMessage);
+                if (error.statusCode && error.statusMessage) {
+                    res.status(error.statusCode).end(error.statusMessage);
+                } else { 
+                    res.status(500).json({ status: "failed" });
+                }
             });
         }
 

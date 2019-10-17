@@ -31,20 +31,14 @@ var stream = require('stream');
 // Update model parameters and get viewable
 /////////////////////////////////////////////////////////////////
 
-function findFile(req, res, id) {
+function findFileLocal(req, res, id) {
     var tokenSession = new token(req.session);
     
     try {
         let clientId = tokenSession.getClientId();
         let folderPath = tokenSession.getFolderPath();
-        let fullPath = "";
-        if (id === "bubble.json") {
-            fullPath = path.join(folderPath, id);
-            console.log('fullPath = ' + fullPath);
-        } else {
-            fullPath = path.join(folderPath, "output\\1\\" + id);
-            console.log('fullPath = ' + fullPath);
-        }
+        let fullPath = path.join(folderPath, "output\\1\\" + id);
+        console.log('fullPath = ' + fullPath);
          
         res.sendFile(fullPath);
     } catch (error) {
@@ -52,6 +46,37 @@ function findFile(req, res, id) {
         res.status(404).end();
     }
 }
+
+async function findFileOss(req, res, id) {
+    var tokenSession = new token(req.session);
+    
+    try {
+        //let clientId = tokenSession.getClientId();
+        //let folderPath = tokenSession.getFolderPath();
+        //let fullPath = path.join(folderPath, "output\\1\\" + id);
+
+        //var tokenSession = new token(req.session);
+
+
+        var objects = new forgeSDK.ObjectsApi();
+        let data = await objects.getObject("adamenagy_viewables", id, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
+        
+        res.set('content-type', 'application/octet-stream');
+        res.end(data.body);
+    
+    
+        
+       
+
+        //console.log('fullPath = ' + fullPath);
+        
+        res.sendFile(fullPath);
+    } catch (error) {
+        console.log(error);
+        res.status(404).end();
+    }
+}
+
 
 /*
 router.get('/lmv_proxy/:id', async function(req, res) {
@@ -64,7 +89,11 @@ router.get('/*', async function(req, res) {
     var id = decodeURIComponent(req.path)
     id = id.replace("/", "");
     id = id.replace(/\//g, "\\")
-    findFile(req, res, id);
+    if (req.session.local) {
+        findFileLocal(req, res, id);
+    } else {
+        findFileOss(req, res, id);
+    }
 });
 
 /////////////////////////////////////////////////////////////////
