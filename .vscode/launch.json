@@ -8,7 +8,11 @@
       "type": "node",
       "request": "launch",
       "name": "Launch Program",
-      "program": "${workspaceFolder}/start.js"
+      "program": "${workspaceFolder}/start.js",
+      "env": {
+        "FORGE_VIEWABLES_CALLBACK": "http://2e02a2e0d8e7.ngrok.io/da/svf/callback",
+        "FORGE_ONCOMPLETE_CALLBACK": "http://2e02a2e0d8e7.ngrok.io/da/oncomplete/callback"
+      }
     }
   ]
 }

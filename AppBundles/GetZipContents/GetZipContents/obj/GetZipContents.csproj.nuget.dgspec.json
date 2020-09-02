@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/nagyad/Documents/GitHub/adamenagy/bucket-model-updater/AppBundles/GetZipContents/GetZipContents/GetZipContents.csproj": {}
+  },
+  "projects": {
+    "/Users/nagyad/Documents/GitHub/adamenagy/bucket-model-updater/AppBundles/GetZipContents/GetZipContents/GetZipContents.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/nagyad/Documents/GitHub/adamenagy/bucket-model-updater/AppBundles/GetZipContents/GetZipContents/GetZipContents.csproj",
+        "projectName": "GetZipContents",
+        "projectPath": "/Users/nagyad/Documents/GitHub/adamenagy/bucket-model-updater/AppBundles/GetZipContents/GetZipContents/GetZipContents.csproj",
+        "packagesPath": "/Users/nagyad/.nuget/packages/",
+        "outputPath": "/Users/nagyad/Documents/GitHub/adamenagy/bucket-model-updater/AppBundles/GetZipContents/GetZipContents/obj/",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "/usr/local/share/dotnet/sdk/NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "/Users/nagyad/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp2.1"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp2.1": {
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netcoreapp2.1": {
+          "dependencies": {
+            "Microsoft.NETCore.App": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.1.0, )",
+              "autoReferenced": true
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[12.0.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/3.1.201/RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

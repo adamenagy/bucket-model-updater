@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0">
+    <!-- 
     <meta http-equiv='cache-control' content='no-cache'>
     <meta http-equiv='expires' content='0'>
     <meta http-equiv='pragma' content='no-cache'>
+    -->
 
     <title>Model Updater</title>
     <link rel="stylesheet" href="/css/jstree.style.min.css"/>
@@ -15,6 +17,7 @@
     <script language="JavaScript" src="/js/jquery.min.js"></script>
     <script language="JavaScript" src="/js/jquery.storageapi.min.js"></script>
     <script src="/js/jstree.js"></script>
+    <script src="/js/socket.io.js"></script>
     <script src="/js/bootstrap.min.js"></script>
 
     <!-- for the viewer -->
@@ -29,20 +32,21 @@
     <div class="jumbotron">
         <h3>Model Updater</h3>
 
-
-        <input id="client_id" placeholder="<client id>" style="width: 30%" />
-        <input id="client_secret" placeholder="<client secret>" style="width: 15%" type="password" />
-     
-        <input id="scopes" value="data:read data:write data:create bucket:read bucket:delete bucket:update bucket:create" style="display:none; width: 50%" />
-        <br />&nbsp;
-        <div class="row">
-            <div class="col-sm-3" style="height:40px">
-
+        <div class="row canbehidden">
+            <div class="col-sm-4">
+                <input id="client_id" placeholder="Client ID" style="display: inline-block;" class="input-small form-control" />
+            </div>
+            <div class="col-sm-4">
+                <input id="client_secret" type="password" placeholder="Client Secret" style="display: inline-block;" class="input-small form-control" />
+            </div>
+            <div class="col-sm-4">
                 <a href="#" id="authenticate" class="btn btn-warning btn-block">
                     <span class="glyphicon glyphicon-user"></span>
                     Log In
                 </a>
             </div>
+            <input id="scopes" value="data:read data:write data:create bucket:read bucket:delete bucket:update bucket:create" style="display:none; width: 50%" />
+            <br />&nbsp;
         </div>
         <div class="row">
             <div class="col-sm-3" style="height:40px">
@@ -56,7 +60,7 @@
 
         </div>
         <div class="row" style="background: white">
-            <div class="col-sm-3 forgeTreeContainer">
+            <div class="col-sm-3 forgeTreeContainer canbehidden">
                 <div id="forgeFiles">
 
                 </div>
@@ -79,32 +83,37 @@
                 </div>
             </div>
             <div class="col-sm-4 forgeTreeContainer" style="position: relative">
-                <div id="forgeZipContents" class="forgeControl"></div>
+                <div id="forgeZipContents" class="forgeControl canbehidden"></div>
                 <div id="forgeFileOptions" class="forgeControlContainer" style="height:50px; overflow: hidden;">
 
-                    <div style="display: inline-block">
+                    <div class="canbehidden" style="display: inline-block">
                         <a id="showZipContents" class="btn btn-warning" title="Show content of zip file">
                             <span class="glyphicon glyphicon-list"></span>  
                         </a>
                     </div>
-                    <div style="display: inline-block">
+                    <div class="canbehidden" style="display: inline-block">
                         <a id="translate" class="btn btn-warning" title="Translate model to viewable format">
                             <span class="glyphicon glyphicon-transfer"></span> 
                         </a>
                     </div>
-                    <div style="display: inline-block">
+                    <div class="canbehidden" style="display: inline-block">
                         <a id="forceTranslate" class="btn btn-warning" data-toggle="button" title="Retranslate in case of existing translation">
                             <span class="glyphicon glyphicon-flash"></span>
                         </a>
                     </div>
-                    <div style="display: inline-block">
+                    <div class="canbehidden" style="display: inline-block">
                         <a id="showParams" class="btn btn-warning" title="Get model parameters">
                             <span class="glyphicon glyphicon-arrow-down"></span>
                         </a>
                     </div>
                     <div style="display: inline-block">
-                        <a id="updateModel" class="btn btn-warning" title="Update model using new parameter values">
-                            <span class="glyphicon glyphicon-refresh"></span>
+                        <a id="toggleHidden" class="btn btn-info" title="Only show parameters list" >
+                            <span class="glyphicon glyphicon-resize-full"></span>
+                        </a>
+                    </div>
+                    <div style="display: inline-block">
+                        <a id="updateModel" class="btn btn-danger" title="Update model using new parameter values" >
+                            <span class="glyphicon glyphicon-picture"></span>
                         </a>
                     </div>
                 </div>

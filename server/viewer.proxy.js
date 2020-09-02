@@ -49,46 +49,28 @@ function findFileLocal(req, res, id) {
 
 async function findFileOss(req, res, id) {
     var tokenSession = new token(req.session);
+    var credentials = tokenSession.getCredentials();
     
     try {
-        //let clientId = tokenSession.getClientId();
-        //let folderPath = tokenSession.getFolderPath();
-        //let fullPath = path.join(folderPath, "output\\1\\" + id);
+        let bucketKey = tokenSession.getFolderPath();
 
-        //var tokenSession = new token(req.session);
-
-
-        var objects = new forgeSDK.ObjectsApi();
-        let data = await objects.getObject("adamenagy_viewables", id, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
-        
-        res.set('content-type', 'application/octet-stream');
-        res.end(data.body);
-    
-    
-        
-       
-
-        //console.log('fullPath = ' + fullPath);
-        
-        res.sendFile(fullPath);
+        // when accessing objects from bucket the object path cannot contain '/' it needs to be URL encoded to '%2F'
+        // that's what encodeURIComponent() achieves 
+        // use redirect instead of downloading to server and passing it to client
+        res.redirect(`https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(id)}`);
     } catch (error) {
         console.log(error);
         res.status(404).end();
     }
 }
 
-
-/*
-router.get('/lmv_proxy/:id', async function(req, res) {
-    var id = decodeURIComponent(req.params.id)
-    findFile(req, res, id);
-});
-*/
-
 router.get('/*', async function(req, res) {
     var id = decodeURIComponent(req.path)
-    id = id.replace("/", "");
-    id = id.replace(/\//g, "\\")
+    
+    // Remove first forward slash from name
+    // "/bubble.json" => "bubble.json"
+    id = id.replace("/", ""); 
+    
     if (req.session.local) {
         findFileLocal(req, res, id);
     } else {

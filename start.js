@@ -28,3 +28,15 @@ var server = app.listen(app.get('port'), function () {
   console.log('Starting at ' + (new Date()).toString());
   console.log('Server listening on port ' + server.address().port);
 });
+
+const uuidv4 = require('uuid/v4');
+
+global.io = require("socket.io")(server)
+
+io.engine.generateId = function (req) {
+  return uuidv4();
+}
+
+io.on('connection', (socket) => {
+  console.log(`New user connected. socket.id=${socket.id}`);
+})

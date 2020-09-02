@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ApplicationPackage SchemaVersion="1.0" Version="1.0" ProductCode="{44b922b1-6cb6-4ed1-b308-bd0be1ca8658}" Name="UpdateUserParametersPlugin" Description="UpdateUserParametersPluginPlugin Plugin" Author="Inventor IO Dev">
+    <CompanyDetails Name="Autodesk, Inc" Phone="415.555.5555" Url="www.autodesk.com" Email="noreply@autodesk.com" />
+    <Components>
+        <!-- For Inventor Engine, "Platform" attribute must be "Inventor" -->
+        <RuntimeRequirements  OS="Win64" Platform="Inventor" />
+        <!-- For Inventor Plug-in, the "Module" attribute must point to the .addin manifest file. -->
+        <ComponentEntry LoadOnAutoCADStartup="False" LoadOnCommandInvocation="False"
+            AppDescription="UpdateUserParametersPlugin App Package."
+            ModuleName="./Contents/UpdateUserParametersPlugin.Inventor.addin" AppName="UpdateUserParametersPlugin"/>
+    </Components>
+    <EnvironmentVariables>
+    </EnvironmentVariables>
+</ApplicationPackage>

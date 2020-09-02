@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity name="UpdateUserParametersPlugin" version="1.0.0.0"></assemblyIdentity>
+  <clrClass clsid="{44b922b1-6cb6-4ed1-b308-bd0be1ca8658}" progid="UpdateUserParametersPlugin.PluginServer" threadingModel="Both" name="UpdateUserParametersPlugin.PluginServer"></clrClass>
+  <file name="UpdateUserParametersPlugin.dll" hashalg="SHA1"></file>
+</assembly>

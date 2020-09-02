@@ -44,16 +44,20 @@ router.get('/user/token', function (req, res) {
     try {
       var client_id = req.query.client_id;
       var client_secret = req.query.client_secret;
+      var socket_id = req.query.socket_id;
       var scopes = req.query.scopes;
       scopes = scopes.split(' ')
 
-      var req = new forgeSDK.AuthClientTwoLegged(client_id, client_secret, scopes);
-      req.authenticate()
+      var authReq = new forgeSDK.AuthClientTwoLegged(client_id, client_secret, scopes);
+      authReq.authenticate()
           .then(function (credentials) {
 
               tokenSession.setCredentials(credentials);
-              tokenSession.setOAuth(req);
+              tokenSession.setOAuth(authReq);
               tokenSession.setClientId(client_id);
+              if (socket_id) {
+                req.session.socket_id = socket_id;
+              }
 
               console.log('Token: ' + credentials.access_token);
             res.setHeader('Access-Control-Allow-Origin', '*');

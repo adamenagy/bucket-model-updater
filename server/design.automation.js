@@ -2,6 +2,8 @@
 
 // token handling in session
 var token = require('./token');
+var fs = require('fs');
+var path = require('path');
 
 // web framework
 var express = require('express');
@@ -9,27 +11,17 @@ var router = express.Router();
 
 var bodyParser = require('body-parser');
 var jsonParser = bodyParser.json();
-var rawParser = bodyParser.raw({ limit: '10mb' });
 const request = require('request');
 const requestPromise = require('request-promise');
 
-var config = require('./config');
 
 var utils = require('./utils');
 
-var fs = require('fs');
-var path = require('path');
-
 var forgeSDK = require('forge-apis');
 
-const unzipper = require('unzipper');
-var AdmZip = require('adm-zip');
+const crypto = require('crypto');
 
-var stream = require('stream');
-
-const crypto = require('crypto')
-
-
+const uuidv4 = require('uuid/v4');
 
 async function daRequest(req, path, method, headers, body) {
     headers = headers || {};
@@ -57,7 +49,7 @@ async function daRequest(req, path, method, headers, body) {
     while (true) {
         let response = await requestPromise(options);
     
-        if (!response.paginationToken) {
+        if (!response || !response.paginationToken) {
             if (data.length > 0) {
                 response.data = [...response.data, ...data];
             }
@@ -70,187 +62,6 @@ async function daRequest(req, path, method, headers, body) {
     } 
     
 }
-
-/*
-router.post('POST /buckets', jsonParser, function(req, res) {
-    console.log('/buckets');
-    var tokenSession = new token(req.session);
-
-    var bucketName = req.body.bucketName
-    var bucketType = req.body.bucketType
-
-    var buckets = new forgeSDK.BucketsApi();
-    buckets.createBucket({
-        "bucketKey": bucketName,
-        "policyKey": bucketType
-    }, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
-        .then(function(data) {
-            res.json(data.body)
-        })
-        .catch(function(error) {
-            res.status(error.statusCode).json({ message: error.statusMessage});
-        })
-
-})
-
-router.get('GET /files/:id', function(req, res) {
-    console.log('/files/:id');
-    var id = req.params.id
-    var boName = getBucketKeyObjectName(id)
-
-    var tokenSession = new token(req.session);
-
-    var objects = new forgeSDK.ObjectsApi();
-    objects.getObject(boName.bucketKey, boName.objectName, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
-        .then(function(data) {
-            var fileParts = boName.objectName.split('.')
-            var fileExt = fileParts[fileParts.length - 1];
-            res.set('content-type', 'application/octet-stream');
-            res.set('Content-Disposition', 'attachment; filename="' + boName.objectName + '"');
-            res.end(data.body);
-        })
-        .catch(function(error) {
-            res.status(error.statusCode).json({ message: error.statusMessage});
-        });
-})
-
-router.delete('/files/:id', function(req, res) {
-    console.log('DELETE /files/:id');
-    var tokenSession = new token(req.session)
-
-    var id = req.params.id
-    var boName = getBucketKeyObjectName(id)
-
-    var objects = new forgeSDK.ObjectsApi();
-    var objectName = decodeURIComponent(boName.objectName)
-    objects.deleteObject(boName.bucketKey, objectName, tokenSession.getOAuth(), tokenSession.getCredentials())
-        .then(function(data) {
-            res.json({ status: "success" })
-        })
-        .catch(function(error) {
-            res.status(error.statusCode).json({ message: error.statusMessage});
-        })
-})
-
-router.get('/files/:id/publicurl', function(req, res) {
-    console.log('GET /files/:id/publicurl');
-    var id = req.params.id
-    var boName = getBucketKeyObjectName(id)
-
-    var tokenSession = new token(req.session);
-
-    var objects = new forgeSDK.ObjectsApi();
-    objects.createSignedResource(boName.bucketKey, boName.objectName, {}, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
-        .then(function(data) {
-            res.json(data.body);
-        })
-        .catch(function(error) {
-            res.status(error.statusCode).json({ message: error.statusMessage});
-        });
-})
-
-router.delete('/buckets/:id', function(req, res) {
-    console.log('DELETE /buckets/:id');
-    var tokenSession = new token(req.session)
-
-    var id = req.params.id
-
-    var buckets = new forgeSDK.BucketsApi();
-    buckets.deleteBucket(id, tokenSession.getOAuth(), tokenSession.getCredentials())
-        .then(function(data) {
-            res.json({ status: "success" })
-        })
-        .catch(function(error) {
-            res.status(error.statusCode).json({ message: error.statusMessage});
-        })
-})
-
-
-router.post('/files', jsonParser, function(req, res) {
-    console.log('POST /files');
-    // Uploading a file to app bucket
-
-    var tokenSession = new token(req.session);
-
-    var fileName = '';
-    var form = new formidable.IncomingForm();
-    var uploadedFile;
-    var bucketName = req.headers.id
-
-    // Receive the file
-    var fileData;
-
-    form
-        .on('data', function(data) {
-            fileData = data;
-        })
-
-        .on('field', function(field, value) {
-            console.log(field, value);
-        })
-        .on('file', function(field, file) {
-            console.log(field, file);
-            uploadedFile = file;
-        })
-        .on('end', function() {
-            if (uploadedFile.name == '') {
-                res.status(500).end('No file submitted!');
-            }
-
-            console.log('-> file received');
-
-            // Create file on A360
-            fs.readFile(uploadedFile.path, function(err, fileData) {
-                // Upload the new file
-                var objects = new forgeSDK.ObjectsApi();
-                objects.uploadObject(bucketName, uploadedFile.name, uploadedFile.size, fileData, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
-                    .then(function(objectData) {
-                        console.log('uploadObject: succeeded');
-                        res.json(objectData.body);
-                    })
-                    .catch(function(error) {
-                        console.log('uploadObject: failed');
-                        res.status(error.statusCode).end(error.statusMessage);
-                    });
-            });
-
-        });
-
-    form.multiples = true;
-    form.parse(req);
-});
-
-router.post('/chunks', rawParser, function(req, res) {
-    console.log('POST /chunks');
-    // Uploading a file to app bucket
-
-    var tokenSession = new token(req.session);
-
-    var fileName = req.headers['x-file-name'];
-    var bucketName = req.headers.id
-    var data = req.body;
-    var range = req.headers.range;
-    var sessionId = req.headers.sessionid;
-
-    // Upload the new file
-    var objects = new forgeSDK.ObjectsApi();
-    objects.uploadChunk(bucketName, fileName, data.length, range, sessionId, data, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
-        .then(function(objectData) {
-            console.log('uploadObject: succeeded');
-            res.status(objectData.statusCode).json(objectData.body);
-        })
-        .catch(function(error) {
-            console.log('uploadObject: failed');
-            try {
-                res.status(error.statusCode).end(error.statusMessage);
-            } catch (Exception) {
-                res.status(500).end("Unknown error");
-            }
-        });
-
-});
-
-*/
 
 /////////////////////////////////////////////////////////////////
 // Items (AppBundles and Activities)
@@ -296,6 +107,18 @@ async function getItem(req, type, id) {
     return response;
 }
 
+function readFilePromise(path) {
+    return new Promise(function (resolve, reject) {
+        fs.readFile(path, (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    })
+}
+
 async function uploadFile(inputUrl, uploadParameters) {
     var downloadOptions = {
         uri: inputUrl,
@@ -311,7 +134,11 @@ async function uploadFile(inputUrl, uploadParameters) {
         },
         formData: uploadParameters.formData
     }
-    uploadOptions.formData.file = request(downloadOptions);
+    if (inputUrl.startsWith("http")) {
+        uploadOptions.formData.file = request(downloadOptions);
+    } else {
+        uploadOptions.formData.file = await readFilePromise(path.join(__dirname, inputUrl));
+    }
 
     await requestPromise(uploadOptions);
 }
@@ -621,7 +448,6 @@ router.get('/workitems/treeNode', async function(req, res) {
         } else {
             var appName = paths[1];
             var aliases = await getItemAliases(req, appName);
-            //var versionAliases = getVersionAliases(paths[2], aliases);
             res.json(makeTree(aliases, 'alias', `${id}/`));
         }
     } catch (ex) {
@@ -631,12 +457,16 @@ router.get('/workitems/treeNode', async function(req, res) {
 
 /////////////////////////////////////////////////////////////////
 // Get zip contents
+// This will generate a contents json file named "<file>.contents"
+// e.g.: "model.iam.zip.contents"
+// id - object id of the ".contents" file
 /////////////////////////////////////////////////////////////////
 
 router.get('/zipcontents/:id', async function(req, res) {
     var id = decodeURIComponent(req.params.id)
-    var objectInfo = utils.getBucketKeyObjectName(id);
-    var jsonName = objectInfo.objectName + ".contents";
+    console.log(id);
+    var contentsInfo = utils.getBucketKeyObjectName(id);
+    var contentsName = contentsInfo.objectName + ".contents";
     var tokenSession = new token(req.session);
     var credentials = tokenSession.getCredentials();
 
@@ -647,11 +477,11 @@ router.get('/zipcontents/:id', async function(req, res) {
     var objects = new forgeSDK.ObjectsApi();
     try {
         console.log("Checking if json for zip file exists");
-        let data = await objects.getObjectDetails(objectInfo.bucketKey, jsonName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        let data = await objects.getObjectDetails(contentsInfo.bucketKey, contentsName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
         utcJson = data.body.lastModifiedDate;
 
         console.log("Getting info about the zip file");
-        data = await objects.getObjectDetails(objectInfo.bucketKey, objectInfo.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        data = await objects.getObjectDetails(contentsInfo.bucketKey, contentsInfo.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
         utcFile = data.body.lastModifiedDate;
     } catch (error) {
         console.log(error);
@@ -667,7 +497,8 @@ router.get('/zipcontents/:id', async function(req, res) {
         }
 
         // run workitem
-        const activityId = "rGm0mO9jVSsD2yBEDk9MRtXQTwsa61y0.GetZipContents+prod";
+        var clientId = tokenSession.getClientId();
+        const activityId = `${clientId}.GetZipContents+prod`;
             
         var createReply = await createItem(req, "workitems", {
             "activityId": activityId, 
@@ -676,7 +507,7 @@ router.get('/zipcontents/:id', async function(req, res) {
                     "zip": true,
                     "verb": "get",
                     "localName": "inputFile",
-                    "url": getUrl(objectInfo.bucketKey, objectInfo.objectName),
+                    "url": getUrl(contentsInfo.bucketKey, contentsInfo.objectName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
@@ -685,43 +516,61 @@ router.get('/zipcontents/:id', async function(req, res) {
                 "outputFile": {
                     "verb": "put",
                     "localName": "outputFile.json",
-                    "url": getUrl(objectInfo.bucketKey, jsonName),
+                    "url": getUrl(contentsInfo.bucketKey, contentsName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
+                    }
+                },
+                "onComplete": {
+                    "ondemand": true,
+                    "verb": "post",
+                    "url": process.env.FORGE_ONCOMPLETE_CALLBACK,
+                    "headers": {
+                        "activity-id": activityId, // the user we have to pass the message to
+                        "oss-id": id, // the user we have to pass the message to
+                        "socket-id": req.session.socket_id // the user we have to pass the message to
                     }
                 }
             }
         });
 
         // check status
+        /*
         let getReply = { status: "pending"}
         while (getReply.status === "pending" || getReply.status === "inprogress") {
             getReply = await getItem(req, "workitems", createReply.id);
             await utils.setTimeoutPromise(1000);
         }
-    } 
-
-    // fetch json document
-    try {
-        console.log("Fetching json file with info about the zip file's content");
-        let data = await objects.getObject(objectInfo.bucketKey, jsonName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
-        res.json(data.body);
-    } catch (error) {
-        res.status(error.statusCode).end(error.statusMessage);
+        console.log(getReply, getReply.reportUrl);
+        */
+       res.json(createReply);
+    } else {
+        // fetch json document
+        try {
+            console.log("Fetching json file with info about the zip file's content");
+            let data = await objects.getObject(contentsInfo.bucketKey, contentsName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
+            res.json(data.body);
+        } catch (error) {
+            console.log(error);
+            res.status(error.statusCode).end(error.statusMessage);
+        }
     }
 });
 
 /////////////////////////////////////////////////////////////////
 // Get model parameters
+// This will generate a json file named "<file>.params"
+// e.g.: "model.iam.zip.params"
+// id - object id of the ".params" file
 /////////////////////////////////////////////////////////////////
 
 router.get('/params/:id', async function(req, res) {
     var id = decodeURIComponent(req.params.id)
     var projectPath = decodeURIComponent(req.query.projectPath);
     var documentPath = decodeURIComponent(req.query.documentPath);
-    var objectInfo = utils.getBucketKeyObjectName(id);
-    var paramName = objectInfo.objectName + ".params";
+    var paramsInfo = utils.getBucketKeyObjectName(id);
+    var paramsName = paramsInfo.objectName + ".params";
     var tokenSession = new token(req.session);
     var credentials = tokenSession.getCredentials();
 
@@ -732,11 +581,11 @@ router.get('/params/:id', async function(req, res) {
     var objects = new forgeSDK.ObjectsApi();
     try {
         console.log("Checking if json for zip file exists");
-        let data = await objects.getObjectDetails(objectInfo.bucketKey, paramName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        let data = await objects.getObjectDetails(paramsInfo.bucketKey, paramsName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
         utcParam = data.body.lastModifiedDate;
 
         console.log("Getting info about the zip file");
-        data = await objects.getObjectDetails(objectInfo.bucketKey, objectInfo.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        data = await objects.getObjectDetails(paramsInfo.bucketKey, paramsInfo.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
         utcFile = data.body.lastModifiedDate;
     } catch (error) {
         console.log(error);
@@ -752,7 +601,8 @@ router.get('/params/:id', async function(req, res) {
         }
 
         // run workitem
-        const activityId = "rGm0mO9jVSsD2yBEDk9MRtXQTwsa61y0.ExtractParams+prod";
+        var clientId = tokenSession.getClientId();
+        const activityId = `${clientId}.ExtractUserParams+prod`;
 
         documentPath = `"documentPath":"inputFile/${documentPath}"`;
         projectPath = (projectPath !== '') ? `, "projectPath":"inputFile/${projectPath}"` : '';
@@ -763,7 +613,7 @@ router.get('/params/:id', async function(req, res) {
                     "zip": true,
                     "verb": "get",
                     "localName": "inputFile",
-                    "url": getUrl(objectInfo.bucketKey, objectInfo.objectName),
+                    "url": getUrl(paramsInfo.bucketKey, paramsInfo.objectName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
@@ -777,16 +627,27 @@ router.get('/params/:id', async function(req, res) {
                 "documentParams": {
                     "verb": "put",
                     "localName": "documentParams.json",
-                    "url": getUrl(objectInfo.bucketKey, paramName),
+                    "url": getUrl(paramsInfo.bucketKey, paramsName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
+                    }
+                },
+                "onComplete": {
+                    "ondemand": true,
+                    "verb": "post",
+                    "url": process.env.FORGE_ONCOMPLETE_CALLBACK,
+                    "headers": {
+                        "activity-id": activityId, // the user we have to pass the message to,
+                        "oss-id": id, // the user we have to pass the message to
+                        "socket-id": req.session.socket_id // the user we have to pass the message to
                     }
                 }
             }
         });
 
         // check status
+        /*
         let getReply = { status: "pending"}
         while (getReply.status === "pending" || getReply.status === "inprogress") {
             getReply = await getItem(req, "workitems", createReply.id);
@@ -798,51 +659,313 @@ router.get('/params/:id', async function(req, res) {
             res.status(500).end(getReply.status);
             return;
         }
-    } 
-
-    // fetch json document
-    try {
-        console.log("Fetching json file with info about the parameters in the model");
-        let data = await objects.getObject(objectInfo.bucketKey, paramName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
-        res.json(data.body);
-    } catch (error) {
-        res.status(error.statusCode).end(error.statusMessage);
+        */
+      
+       res.json(createReply);
+    } else {
+        // fetch json document
+        try {
+            console.log("Fetching json file with info about the parameters in the model");
+            let data = await objects.getObject(paramsInfo.bucketKey, paramsName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
+            res.json(data.body);
+        } catch (error) {
+            res.status(error.statusCode).end(error.statusMessage);
+        }
     }
 });
 
 /////////////////////////////////////////////////////////////////
 // Update model parameters and get viewable
+// This will generate a json file named "<file>.viewables.<hash>"
+// e.g.: "model.iam.zip.viewables.asdad56756wyuytdsa"
+// The hash is generated from the list or parameters and values
+// that have been changed from the original model
+// This file will contain the name of the OSS bucket that will store
+// all the viewables for the given configuration
+// Bucket name: "<client id lower case>_guid"
+// The name of the bucket is saved in 
+// the "<file>.viewables.<hash>" file
 /////////////////////////////////////////////////////////////////
 
 function getHash(text) {
     return crypto.createHash('md5').update(text).digest("hex");
 }
 
-router.post('/params/:id', jsonParser, async function(req, res) {
+function getGuid() {
+    return uuidv4();
+}
+
+// The incoming message will be something like:
+// {"permissions":"write","files":["textfile1.txt","textfile2.txt"]} 
+// We have to return something like:
+// { 
+//   "textfile1.txt": "https://developer.api.autodesk.com/oss/v2/signedresources/a5ab33f3-8308-4458-8393-7c633f492c9c?region=US",
+//   "textfile2.txt": "https://developer.api.autodesk.com/oss/v2/signedresources/31ad4c55-1b41-40e0-a8ca-ddb02dde8545?region=US"
+// }
+// The files will have names already URL encoded because of Windows restrictions on file names, 
+// so no need to do encode() on them
+router.post('/svf/callback', jsonParser, async function(req, res) {
+    try {
+        console.log("/svf/callback");
+        console.log(req.body);
+
+        let bucketKey = req.headers["viewables-bucket-key"];
+        let urls = {};
+        for (let fileNameEncoded of req.body.files) {
+            let options = {
+                uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${fileNameEncoded}/signed?access=write`,
+                method: "post",
+                headers: {
+                    "Content-Type": "application/json;charset=UTF-8",
+                    "Authorization": req.headers["authorization"]
+                },
+                body: {
+                    "minutesExpiration" : 45,
+                    "singleUse" : true
+                },
+                json: true
+            };
+            
+            let response = await requestPromise(options);
+            urls[fileNameEncoded] = response.signedUrl;
+        }
+
+        console.log("Returning URLS: ", urls);
+        res.json(urls);
+    } catch (error) {
+        console.log(error);
+        res.json({ status: "failed", message: error.message });
+    }
+});
+
+async function getInfoFile(bucketKey, objectName, authorization) {
+    let options = {
+        uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(objectName)}`,
+        method: "get",
+        headers: {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Authorization": authorization
+        },
+        json: true
+    };
+    let viewablesInfo = await requestPromise(options);
+    console.log("getInfoFile: ", viewablesInfo);
+
+    return viewablesInfo;
+}
+
+async function updateInfoFile(bucketKey, objectName, authorization, data) {
+    console.log("updateInfoFile: ", data);
+    let viewablesInfo = {};
+    try {
+        viewablesInfo = await getInfoFile(bucketKey, objectName, authorization);
+
+        for (let key in data) {
+            viewablesInfo[key] = data[key];
+        }
+    } catch (error) {
+        console.log(error);
+        viewablesInfo = data;
+    }
+    
+    // save new content in file
+    let options = {
+        uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(objectName)}`,
+        method: "put",
+        headers: {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Authorization": authorization
+        },
+        body: viewablesInfo,
+        json: true
+    };
+    
+    return await requestPromise(options);
+}
+
+router.post('/oncomplete/callback', jsonParser, async function(req, res) {
+    // Return straight away
+    console.log("Report: " + req.body.reportUrl);
+    res.json({});
+
+    try {
+        console.log("/oncomplete/callback");
+        console.log(req.body);
+
+        let socketId = req.headers["socket-id"];
+        let ossId = req.headers["oss-id"];
+        let activityId = req.headers["activity-id"];
+        if (activityId.includes("UpdateModel")) {
+            let bucketKey = req.headers["viewables-info-bucket-key"];
+            let objectNme = req.headers["viewables-info-object-name"];
+            let authorization = req.headers["authorization"];
+    
+            await updateInfoFile(bucketKey, objectNme, authorization, { status: req.body.status });
+        } 
+
+        io.to(socketId).emit('oncomplete', { status: req.body.status, activityId: activityId, ossId: ossId });
+    } catch (error) {
+        console.log(error);
+    }  
+})
+
+router.post('/params/hash', jsonParser, async function(req, res) {
+    let body = JSON.stringify(req.body);
+    let viewablesInfoNameHash = getHash(body);
+
+    return res.json({ hash: viewablesInfoNameHash });
+});
+
+var _daItems = {
+    "GetZipContents": {
+        "appbundles": {
+            "engine": "Autodesk.Inventor+24",
+            "description": "Gets contents of zip file"
+        },
+        "activities": {
+            "commandLine": [
+                "$(appbundles[GetZipContents].path)\\DA4I_BasicInfoPlugin.bundle\\Contents\\GetZipContentsExe.exe $(args[inputFile].path) outputFile.json"
+            ],
+            "parameters": {
+            "inputFile": {
+                "zip": true,
+                "verb": "get",
+                "localName": "inputFile"
+            },
+            "outputFile": {
+                "verb": "put",
+                "localName": "outputFile.json"
+            }
+            },
+            "engine": "Autodesk.Inventor+24",
+            "appbundles": [
+            ],
+            "description": "Get Zip Contents into a json file"
+        }                 
+    }, 
+    "ExtractUserParams": {
+        "appbundles": {
+            "engine": "Autodesk.Inventor+24",
+            "description": "Gets user parameters from the Inventor model"
+        },
+        "activities": {
+            "commandLine": [
+                "$(engine.path)\\\\InventorCoreConsole.exe /al $(appbundles[ExtractUserParams].path)"
+            ],
+            "parameters": {
+            "inputFile": {
+                "zip": true,
+                "verb": "get",
+                "localName": "inputFile"
+            },
+            "inputParams": {
+                "verb": "get",
+                "localName": "inputParams.json"
+            },
+            "documentParams": {
+                "verb": "put",
+                "localName": "documentParams.json"
+            }
+            },
+            "engine": "Autodesk.Inventor+24",
+            "appbundles": [
+            ],
+            "description": "Extract params from Inventor documents"
+        }
+    },
+    "UpdateModel": {
+        "appbundles": {
+            "engine": "Autodesk.Inventor+24",
+            "description": "Updates user parameters in the model with the provided values"
+        },
+        "activities": {
+            "commandLine": [
+              "$(engine.path)\\InventorCoreConsole.exe /al $(appbundles[UpdateModel].path)"
+            ],
+            "parameters": {
+              "inputFile": {
+                "zip": true,
+                "verb": "get",
+                "localName": "inputFile"
+              },
+              "inputParams": {
+                "verb": "get",
+                "localName": "inputParams.json"
+              },
+              "documentParams": {
+                "verb": "get",
+                "localName": "documentParams.json"
+              },
+              "svfOutput": {
+                "ondemand": true,
+                "verb": "put",
+                "localName": "SvfOutput"
+              }
+            },
+            "engine": "Autodesk.Inventor+24",
+            "appbundles": [
+            ],
+            "description": "Update model using callback"
+          }         
+    },
+}
+
+// Create all the AppBundles and Activities needed
+router.post('/items/setup', jsonParser, async function(req, res) {
+    let forceUpdate = req.body.forceUpdate;
+
+    try {
+        let tokenSession = new token(req.session);
+        let clientId = tokenSession.getClientId();
+        for (let id in _daItems) {
+            console.log(id);
+            let fullId = `${clientId}.${id}+prod`;        
+
+            let item = _daItems[id]
+            for (let type in item) {
+                console.log(type);
+                let data = item[type] 
+                data.id = id
+                if (type === "activities") {
+                    data.appbundles.push(fullId)
+                } else if (type === "appbundles") {
+                    data.bundle = "zipfiles/" + id + ".zip"
+                }
+
+                try {
+                    let ret = await getItemVersions(req, type, id)
+                    console.log("Already exists");
+                    if (forceUpdate) {
+                        ret = await deleteItem(req, type, id)
+                        throw "Recreate items after deletion"
+                    }
+                } catch (error) {
+                    let ret = await createItem(req, type, data)
+                    ret = await createItemAlias(req, type, id, 1, "prod")
+                    console.log(error);
+                }
+            }   
+        }
+
+        res.json({ status: "success" });
+    } catch (err) {
+        console.log(err);
+        res.status(500).end();
+    }
+})
+
+
+router.post('/viewables/:id', jsonParser, async function(req, res) {
     var id = decodeURIComponent(req.params.id)
     var projectPath = decodeURIComponent(req.query.projectPath);
     var documentPath = decodeURIComponent(req.query.documentPath);
-    var objectInfo = utils.getBucketKeyObjectName(id);
+    var viewablesInfoObject = utils.getBucketKeyObjectName(id);
     let body = JSON.stringify(req.body);
-    let hash = getHash(body);
-    var viewableName = objectInfo.objectName + ".viewable." + hash;
+    let viewablesInfoNameHash = getHash(body);
+    var viewablesInfoName = viewablesInfoObject.objectName + ".viewables." + viewablesInfoNameHash;
+    let workitemStatus = "failed";
     var tokenSession = new token(req.session);
     var credentials = tokenSession.getCredentials();
-
-    // check if a job is pending for it
-    req.session.jobs = req.session.jobs || {};
-    req.session.local = false;
-    if (req.session.jobs[viewableName]) {
-        let getReply = await getItem(req, "workitems", req.session.jobs[viewableName]);
-        if (getReply.status === "pending" || getReply.status === "inprogress") {
-            res.json(getReply);
-
-            return;
-        } else {
-            // the job finished, so we can comntinue
-            delete req.session.jobs[viewableName];
-        }
-    }
 
     // check if json file already exists and newer than the file
     // it contains info about
@@ -850,12 +973,15 @@ router.post('/params/:id', jsonParser, async function(req, res) {
     var utcFile = 0;
     var objects = new forgeSDK.ObjectsApi();
     try {
-        console.log("Checking if viewable for zip file exists");
-        let data = await objects.getObjectDetails(objectInfo.bucketKey, viewableName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        console.log("Checking if viewables info for zip file exists");
+        let data = await objects.getObjectDetails(viewablesInfoObject.bucketKey, viewablesInfoName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
         utcViewable = data.body.lastModifiedDate;
 
+        data = await objects.getObject(viewablesInfoObject.bucketKey, viewablesInfoName, { }, tokenSession.getOAuth(), tokenSession.getCredentials())  
+        workitemStatus = data.body.status;
+
         console.log("Getting info about the zip file");
-        data = await objects.getObjectDetails(objectInfo.bucketKey, objectInfo.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
+        data = await objects.getObjectDetails(viewablesInfoObject.bucketKey, viewablesInfoObject.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
         utcFile = data.body.lastModifiedDate;
     } catch (error) {
         console.log(error);
@@ -863,7 +989,35 @@ router.post('/params/:id', jsonParser, async function(req, res) {
 
     // if the json file is older than the file it has info about
     // then lets fetch the info again
-    if (utcViewable <= utcFile) {
+    if (utcViewable <= utcFile && workitemStatus.startsWith('failed')) {
+        let clientId = tokenSession.getClientId();
+        let bucketKey = clientId.toLowerCase() + "_" + getGuid(); 
+
+        //  Create bucket for viewables
+        try {
+            let buckets = new forgeSDK.BucketsApi();
+            let reply = await buckets.createBucket({
+                    "bucketKey": bucketKey,
+                    "policyKey": "persistent"
+                }, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
+        } catch (error) {
+            console.log(error);
+            res.json({ status: "failed", message: "Could not create bucket for viewables named: " + bucketKey });
+            return;
+        }
+
+        // Create file with info about the viewables 
+        try {
+            await updateInfoFile(viewablesInfoObject.bucketKey, viewablesInfoName, "Bearer " + credentials.access_token, {
+                "bucketKey": bucketKey, "status": "pending"
+            });
+        } catch (error) {
+            console.log(error);
+
+            res.json({ status: "failed", message: "Could not create file for viewables" });
+            return;
+        }
+
         console.log("Running job to update model...");
 
         const getUrl = (bucketKey, objectName) => {
@@ -871,10 +1025,10 @@ router.post('/params/:id', jsonParser, async function(req, res) {
         }
 
         // run workitem
-        const activityId = "rGm0mO9jVSsD2yBEDk9MRtXQTwsa61y0.UpdateModel+prod";
+        const activityId = `${clientId}.UpdateModel+prod`;
 
         documentPath = `"inputFile":"inputFile/${documentPath}"`;
-        projectPath = (projectPath !== '') ? `, "projectPath":"inputFile/${projectPath}"` : '';
+        projectPath = (projectPath !== '') ? `, "projectFile":"inputFile/${projectPath}"` : '';
 
         let workitemBody = {
             "activityId": activityId, 
@@ -883,7 +1037,7 @@ router.post('/params/:id', jsonParser, async function(req, res) {
                     "verb": "get",
                     "localName": "inputFile",
                     "zip": true,
-                    "url": getUrl(objectInfo.bucketKey, objectInfo.objectName),
+                    "url": getUrl(viewablesInfoObject.bucketKey, viewablesInfoObject.objectName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
@@ -899,85 +1053,61 @@ router.post('/params/:id', jsonParser, async function(req, res) {
                     "localName": "documentParams.json",
                     "url": `data:application/json,${body}`
                 },
-                "viewable": {
+                "svfOutput": {
+                    "ondemand": true,
+                    "zip": false,
                     "verb": "put",
-                    "localName": "viewable.zip",
-                    "url": getUrl(objectInfo.bucketKey, viewableName),
+                    "localName": "SvfOutput",
+                    "url": process.env.FORGE_VIEWABLES_CALLBACK,
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
-                        "Content-type": "application/octet-stream"
+                        "Content-type": "application/octet-stream",
+                        "viewables-bucket-key": bucketKey // where the viewables need to be uploaded
+                    }
+                },
+                "onComplete": {
+                    "ondemand": true,
+                    "verb": "post",
+                    "url": process.env.FORGE_ONCOMPLETE_CALLBACK,
+                    "headers": {
+                        "Authorization": "Bearer " + credentials.access_token,
+                        "viewables-info-bucket-key": viewablesInfoObject.bucketKey,  // where the model file is
+                        "viewables-info-object-name": viewablesInfoName, // file with info about workitem 
+                        "activity-id": activityId, // the user we have to pass the message to
+                        "oss-id": id, // the user we have to pass the message to
+                        "socket-id": req.session.socket_id // the user we have to pass the message to
                     }
                 }
             }
         };
+        console.log(JSON.stringify(workitemBody));
 
         var createReply = await createItem(req, "workitems", workitemBody);
+        console.log(createReply);
 
-        // check status
-        /*
-        let getReply = { status: "pending"}
-        while (getReply.status === "pending" || getReply.status === "inprogress") {
-            getReply = await getItem(req, "workitems", createReply.id);
-            await utils.setTimeoutPromise(1000);
-        }
-
-        if (getReply.status !== "success") {
-            console.log(getReply.reportUrl);
-        }
-        */
-
-       let getReply = await getItem(req, "workitems", createReply.id);
-
-        if (getReply.status === "pending" || getReply.status === "inprogress") {
-            // it's not finished so let's just return
-            req.session.jobs[viewableName] = createReply.id;
-            res.json(getReply);
-
+        try {
+            await updateInfoFile(viewablesInfoObject.bucketKey, viewablesInfoName, "Bearer " + credentials.access_token, {
+                "bucketKey": bucketKey, "status": createReply.status, "workitemId": createReply.id
+            });
+        } catch (error) {
+            console.log(error);
+            res.json({ status: "failed", message: "Could not update file for viewables" });
             return;
-        } 
-    } 
+        }
+        
+        res.json(createReply);
 
-    // fetch viewable and unzip to temp folder
-    try {
-        let clientId = tokenSession.getClientId();
-        let folderPath = path.join(__dirname, "local_cache", clientId, hash);
-        tokenSession.setFolderPath(folderPath);
+        return;
+    } else {
+        // Find the folder that has the viewables
+        console.log("Getting data from the file with info about the viewables");
+        let viewablesInfo = await getInfoFile(viewablesInfoObject.bucketKey, viewablesInfoName, "Bearer " + credentials.access_token);       
+        console.log(viewablesInfo);
 
-        if (!fs.existsSync(folderPath)) {
-            console.log("Fetching viewables for updated model");
-            let data = await objects.getObject(objectInfo.bucketKey, viewableName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
-            console.log("Received viewables");
-            
-            if (req.session.local) {
-                let bufferStream = new stream.PassThrough();
+        let bucketKey = viewablesInfo.bucketKey;
+        tokenSession.setFolderPath(bucketKey);
 
-                bufferStream.end(data.body);
-
-                console.log("Extracting zip content to local drive");
-                bufferStream.pipe(unzipper.Extract({ path: folderPath }))
-                    .on('complete', function(job) {
-                        console.log("Extracted zip content to local drive");
-                        res.json( { "status": "success" } );
-
-                        return;
-                    });
-            } else {
-                // push the content to a bucket
-
-            }
-            
-        } else {
-            console.log("Viewable already cached locally");
-            res.json( { "status": "success" } );
-
-            return;
-        }        
-    } catch (error) {
-        console.log("Failed to get viewable");
-        if (error.statusCode && error.statusMessage)
-            res.status(error.statusCode).json({ "status": "failed", "message": error.statusMessage });
-        else
-            res.status(500).json({ "status": "failed" });
+        res.json(viewablesInfo);
     }
 });
 

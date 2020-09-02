@@ -14,13 +14,15 @@
     "morgan": "^1.9.1",
     "oauth": "^0.9.14",
     "request": "^2.87.0",
-    "request-promise": "*",
+    "request-promise": "4.2.4",
     "trim": "0.0.1",
     "url": "^0.11.0",
-    "unzipper": "*",
-    "stream": "*",
-    "adm-zip": "*",
-    "crypto": "*"
+    "unzipper": "0.10.5",
+    "stream": "0.0.2",
+    "adm-zip": "0.4.13",
+    "crypto": "1.0.1",
+    "uuid": "3.3.3",
+    "socket.io": "2.0.3"
   },
   "repository": {
     "type": "git",

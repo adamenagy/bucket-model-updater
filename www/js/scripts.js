@@ -1,8 +1,12 @@
 var MyVars = {
+    forgeFileOptions: { top: 0 },
+    forgeModelParams: {}
 };
 
 $(document).ready(function () {
     fillCredentialControls();
+
+    getParameters();
 
     $("#createBucket").click(function (evt) {
         createBucket();
@@ -30,6 +34,27 @@ $(document).ready(function () {
         updateModel(MyVars.selectedNode.original.id);
     });
 
+    $("#toggleHidden").click(function (evt) {
+        if ($("#forgeFileOptions").css("top") === "0px") {
+            MyVars.forgeFileOptions.top = $("#forgeFileOptions").css("top", MyVars.forgeFileOptions.top);
+            MyVars.forgeModelParams.top = $("#forgeModelParams").css("top", MyVars.forgeModelParams.top);
+            MyVars.forgeModelParams.height = $("#forgeModelParams").css("height", MyVars.forgeModelParams.height);
+            $(".forgeViewer").removeClass("col-sm-8").addClass("col-sm-5");
+        } else {
+            MyVars.forgeFileOptions.top = $("#forgeFileOptions").css("top");
+            $("#forgeFileOptions").css("top", "0px");
+            MyVars.forgeModelParams.top = $("#forgeModelParams").css("top");
+            $("#forgeModelParams").css("top", "58px");
+            MyVars.forgeModelParams.height = $("#forgeModelParams").css("height");
+            $("#forgeModelParams").css("height", "440px");
+            $(".forgeViewer").removeClass("col-sm-5").addClass("col-sm-8");
+        }
+       
+
+        $('.canbehidden').toggle();
+
+    });
+
     $("#uploadFile").click(function (evt) {
         evt.preventDefault();
         $("#forgeUploadHidden").trigger("click");
@@ -44,6 +69,29 @@ $(document).ready(function () {
     });
 });
 
+function setUpSocket(callback) {
+    MyVars.socket = io();
+
+    MyVars.socket.on('connect', callback);
+
+    MyVars.socket.on('oncomplete', (data) => {
+        console.log('oncomplete: ', data);
+        if (data.activityId.includes("UpdateModel")) {
+            if (data.status === "success") {
+                updateModel(MyVars.selectedNodeFileId, MyVars.documentPath, MyVars.params);
+                $('#forgeFiles').jstree(true).refresh();
+                updateModelButton(true);
+            } else {
+                showProgress("Model update failed", 'failed');
+            }
+        } else if (data.activityId.includes("ExtractUserParams")) {
+            showParams(data.ossId);
+        } else if (data.activityId.includes("GetZipContents")) {
+            showZipContents(data.ossId);
+        }
+    });
+}
+
 function fillCredentialControls() {
     var url = new URL(window.location.href);
     var client_id = url.searchParams.get("client_id");
@@ -53,6 +101,37 @@ function fillCredentialControls() {
     var client_secret = url.searchParams.get("client_secret");
     if (client_secret) {
         $("#client_secret").val(client_secret);
+    }
+
+    var force_setup = url.searchParams.get("force_setup");
+    MyVars.forceSetup = (force_setup) ? true : false;
+}
+
+function getParameters() {
+    // params should be something like:
+    // { "id":"urn:adsk.objects:os.object:k-tron/KTron%20Hopper%20Cover%20iLogic%20Adam6.zip",
+    //   "documentPath":"iLogic Configurator/Hopper Cover Master.iam",
+    //   "params":{"ConfigType":"\"P-Level\"","iTrigger0":"11"}}
+
+    var url = new URL(window.location.href);
+    var params = url.searchParams.get("params");
+    if (params) {
+        authenticate(() => {
+            params = JSON.parse(atob(params));
+
+            MyVars.selectedNodeFileId = params.id
+            MyVars.documentPath = params.documentPath
+            MyVars.params = params.params
+            updateModel(params.id, params.documentPath, params.params)
+
+            $("#toggleHidden").click();
+
+            paramsList = {}
+            for (let key in params.params) {
+                paramsList[key] = { value: params.params[key] } 
+            }
+            prepareParamsList(paramsList);
+        });
     }
 }
 
@@ -268,6 +347,7 @@ function get2LegToken(onSuccess, onError) {
             data: {
                 client_id: client_id,
                 client_secret: client_secret,
+                socket_id: MyVars.socket.id,
                 scopes: scopes
             },
             success: function (data) {
@@ -286,20 +366,43 @@ function get2LegToken(onSuccess, onError) {
     }
 }
 
-function authenticate() {
-    get2LegToken(function (token) {
-        var auth = $("#authenticate");
+function authenticate(callback) {
+    setUpSocket(() => {
+        get2LegToken(function (token) {
+            var auth = $("#authenticate");
+            MyVars.token2Leg = token;
 
-        MyVars.token2Leg = token;
-        console.log('Returning new 3 legged token (User Authorization): ' + MyVars.token2Leg);
-        showProgress()
+            console.log('Returning new 3 legged token (User Authorization): ' + MyVars.token2Leg);
+            showProgress()
 
-        auth.html('Logged in');
+            auth.html('Logged in');
 
-        // Fill the tree with A360 items
-        prepareFilesTree();
-    }, function (err) {
-        showProgress(err.responseText, 'failed');
+            showProgress("Setting up AppBundles and Activities...", 'inprogress');
+            $.ajax({
+                url: '/da/items/setup',
+                type: 'POST',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({
+                    forceUpdate: MyVars.forceSetup
+                })
+            }).done(function (data) {
+                showProgress("Setup complete", "success")
+
+                if (callback)
+                    callback();
+
+                // Fill the tree with A360 items
+                prepareFilesTree();
+
+                $('#forgeFiles').jstree(true).refresh()
+            }).fail(function (xhr, ajaxOptions, thrownError) {
+                console.log('Setup failed!')
+                showProgress("Setup failed", "failed")
+            });
+        }, function (err) {
+            showProgress(err.responseText, 'failed');
+        });
     });
 }
 
@@ -427,7 +530,7 @@ function translate() {
 
     let rootFilename = (MyVars.rootFileNode) ? MyVars.rootFileNode.text : "";
     askForFileType("svf", MyVars.selectedUrn, null, null, rootFilename, ext, (res) => {
-        initializeViewer(MyVars.selectedUrn);
+        initializeViewer("urn:" + MyVars.selectedUrn);
     })
 }
 
@@ -569,6 +672,14 @@ function prepareFilesTree() {
             'items': filesTreeContextMenu
         }
     }).bind("select_node.jstree", function (evt, data) {
+        // if it's only called as a result of refresh, then let's
+        // just refresh MyVars.selectedNode and return
+        if (MyVars.selectedNode && (MyVars.selectedNode.id === data.node.id)) {
+            MyVars.selectedNode = data.node;
+            MyVars.selectedNodeFileId = MyVars.selectedNode.original.id;
+            return;
+        }
+
         // Clean up previous instance
         cleanupViewer();
 
@@ -577,9 +688,11 @@ function prepareFilesTree() {
         $('#forgeFiles').jstree("open_node", data.node);
 
         MyVars.selectedNode = data.node;
+        MyVars.selectedNodeFileId = MyVars.selectedNode.original.id;
+        MyVars.rootFileNode = null;
+        MyVars.projectFileNode = null;
 
         if (data.node.type === 'file') {
-            $("#deleteManifest").removeAttr('disabled');
             $("#uploadFile").removeAttr('disabled');
 
             // Clear hierarchy tree
@@ -609,7 +722,6 @@ function prepareFilesTree() {
                 "MyVars.selectedUrn = " + MyVars.selectedUrn
             );
         } else {
-            $("#deleteManifest").attr('disabled', 'disabled');
             $("#uploadFile").attr('disabled', 'disabled');
 
             // Just open the children of the node, so that it's easier
@@ -679,6 +791,7 @@ function getPublicUrl(id) {
 
 function filesTreeContextMenu(node, callback) {
     MyVars.selectedNode = node
+    MyVars.selectedNodeFileId = node.original.id
     if (node.type === 'bucket') {
         callback({
             refreshTree: {
@@ -739,9 +852,11 @@ function showZipContents(id) {
         type: 'GET'
     }).done(function (data) {
         console.log(data);
-        prepareZipContentsTree(data)
-        cleanupCancellableOperation()
-        showProgress("Fetched zip content", 'success');
+        if (!data.status) {
+            prepareZipContentsTree(data)
+            cleanupCancellableOperation()
+            showProgress("Fetched zip content", 'success');
+        }
     }).fail(function (err) {
         if (!MyVars.cancellableOperation.keepTrying) {
             showProgress("Cancelled getting zip content", 'failed');
@@ -864,7 +979,45 @@ function zipContentsTreeContextMenu(node) {
 // Shows the user parameters available in the model
 /////////////////////////////////////////////////////////////////
 
-function showParams(id) {
+function updateModelButton(configExists) {
+    if (configExists) {
+        $('#updateModel').addClass('btn-success');
+        $('#updateModel').removeClass('btn-danger');
+    } else {
+        $('#updateModel').addClass('btn-danger');
+        $('#updateModel').removeClass('btn-success');
+    }
+}
+
+function onParamChange() {
+    let json = getParamChanges();
+
+    $.ajax({
+        url: '/da/params/hash',
+        type: 'POST',
+        dataType: "json",
+        contentType: 'application/json',
+        data: JSON.stringify(json)
+    }).done(function (data) {
+        console.log(data);
+
+        // Check if any of the siblings of the selected zip file has that extension
+        let siblings = $('#forgeFiles').jstree(true).get_node(MyVars.selectedNode.parent).children;
+        let fullName = MyVars.selectedNode.text + ".viewables." + data.hash;
+        let exists = siblings.find(
+            (item) => {
+                let parts = item.split('/');
+                return (decodeURI(parts[1]) === fullName);
+            }
+        );
+
+        updateModelButton(exists);
+    }).fail(function (err) {
+        console.log('POST /da/hash call failed\n' + err.statusText);
+    })    
+}
+
+function showParams(id, documentPath) {
      
     if (!MyVars.rootFileNode) {
         alert("You have to select the root file you want the parameters from");
@@ -874,18 +1027,23 @@ function showParams(id) {
     startCancellableOperation()
     showProgress("Fetching parameters...", "inprogress")
 
-    let documentPath = $('#forgeZipContents').jstree().get_path(MyVars.rootFileNode, '/');
+    if (!documentPath)
+      documentPath = $('#forgeZipContents').jstree().get_path(MyVars.rootFileNode, '/');
+
     let projectPath = (MyVars.projectFileNode) ? 
         $('#forgeZipContents').jstree().get_path(MyVars.projectFileNode, '/') : '';    
 
     MyVars.cancellableOperation.ajaxCalls.push($.ajax({
-        url: `/da/params/${encodeURIComponent(id)}?documentPath=${documentPath}&projectPath=${encodeURIComponent(projectPath)}`,
+        url: `/da/params/${encodeURIComponent(id)}?documentPath=${encodeURIComponent(documentPath)}&projectPath=${encodeURIComponent(projectPath)}`,
         type: 'GET'
     }).done(function (data) {
         console.log(data);
-        prepareParamsList(data)
-        cleanupCancellableOperation()
-        showProgress("Fetched parameters", 'success');
+        if (!data.status) {
+            prepareParamsList(data)
+            cleanupCancellableOperation()
+            showProgress("Fetched parameters", 'success');
+            onParamChange();
+        }
     }).fail(function (err) {
         if (!MyVars.cancellableOperation.keepTrying) {
             showProgress("Cancelled getting parameters", 'failed');
@@ -904,6 +1062,11 @@ function prepareParamsList(json) {
     for (let key in json) {
       let item = json[key];
       let id = `parameters_${key}`;
+
+      // Get rid of the unit
+      if (item.value.endsWith(item.unit)) {
+          item.value = item.value.substring(0, item.value.length - item.unit.length - 1)
+      }
   
       if (item.values && item.values.length > 0) {
         parameters.append($(`
@@ -919,6 +1082,7 @@ function prepareParamsList(json) {
         // Activate current selection
         select.val(item.value);
         select.attr('originalValue', item.value);
+        select.change(onParamChange);
       } else if (item.unit === "Boolean") {
         parameters.append($(`
           <div class="form-group">
@@ -931,6 +1095,7 @@ function prepareParamsList(json) {
         let select = $(`#${id}`);
         select.val(item.value);
         select.attr('originalValue', item.value);
+        select.change(onParamChange);
       } else {
         parameters.append($(`
           <div class="form-group">
@@ -940,6 +1105,7 @@ function prepareParamsList(json) {
         let input = $(`#${id}`);
         input.val(item.value);
         input.attr('originalValue', item.value);
+        input.change(onParamChange);
       }
     }
 }
@@ -948,20 +1114,7 @@ function prepareParamsList(json) {
 // Update model parameters and show it in Viewer
 /////////////////////////////////////////////////////////////////
 
-function updateModel(id) {
-     
-    if (!MyVars.rootFileNode) {
-        alert("You have to select the file you want to update the parameters in");
-        return;
-    }
-
-    startCancellableOperation()
-    showProgress("Fetching viewables...", "inprogress")
-
-    let documentPath = $('#forgeZipContents').jstree().get_path(MyVars.rootFileNode, '/');
-    let projectPath = (MyVars.projectFileNode) ? 
-        $('#forgeZipContents').jstree().get_path(MyVars.projectFileNode, '/') : '';    
-
+function getParamChanges() {
     // go through list of parameters and collect what changed
     var parameters = $('#forgeModelParams .form-control');
     var json = {}; // collect what changed
@@ -975,8 +1128,32 @@ function updateModel(id) {
         }
     }
 
+    return json;
+}
+
+function updateModel(id, documentPath, params) {
+     
+    if (!documentPath) {
+        if (!MyVars.rootFileNode) {
+            alert("You have to select the file you want to update the parameters in");
+            return;
+        }
+
+        documentPath = $('#forgeZipContents').jstree().get_path(MyVars.rootFileNode, '/');
+    }
+    
+    let projectPath = (MyVars.projectFileNode) ? 
+        $('#forgeZipContents').jstree().get_path(MyVars.projectFileNode, '/') : '';    
+
+    startCancellableOperation()
+    showProgress("Fetching viewables...", "inprogress")
+
+    let json = params;
+    if (!json)
+        json = getParamChanges();
+
     MyVars.cancellableOperation.ajaxCalls.push($.ajax({
-        url: `/da/params/${encodeURIComponent(id)}?documentPath=${documentPath}&projectPath=${encodeURIComponent(projectPath)}`,
+        url: `/da/viewables/${encodeURIComponent(id)}?documentPath=${documentPath}&projectPath=${encodeURIComponent(projectPath)}`,
         type: 'POST',
         dataType: "json",
         contentType: 'application/json',
@@ -987,10 +1164,10 @@ function updateModel(id) {
         //prepareParamsList(data)
         cleanupCancellableOperation()
         if (data.status === "pending" || data.status === "inprogress") {
-            showProgress("Job running. Click again to check progress", 'success');
+            showProgress("Updating model...", 'pending');
         } else {
             showProgress("Fetched viewables", 'success');
-            initializeViewer('result.svf', true)
+            initializeViewer('/viewer_proxy/bubble.json')
         } 
     }).fail(function (err) {
         if (!MyVars.cancellableOperation.keepTrying) {
@@ -1102,28 +1279,19 @@ function cleanupViewer() {
     }
 }
 
-function initializeViewer(urn, isProxy) {
+function initializeViewer(urn) {
     cleanupViewer();
 
     console.log("Launching Autodesk Viewer for: " + urn);
 
-    var options = {};
-    if (isProxy) {
-        options = {
-            document: urn,
-            env: 'AutodeskProduction', //'Local' //'AutodeskStaging', //'AutodeskProduction',
-            getAccessToken: get2LegToken
-        };
-    } else {
-        options = {
-            document: 'urn:' + urn,
-            env: 'AutodeskProduction', 
-            getAccessToken: get2LegToken
-        };
-    }
+    var options = {
+        document: urn,
+        env: 'AutodeskProduction', //'Local' //'AutodeskStaging', //'AutodeskProduction',
+        getAccessToken: get2LegToken
+    };
     
     if (MyVars.viewer) {
-        loadDocument(MyVars.viewer, options.document, isProxy);
+        loadDocument(MyVars.viewer, options.document);
     } else {
         var viewerElement = document.getElementById('forgeViewer');
         var config = {
@@ -1135,7 +1303,7 @@ function initializeViewer(urn, isProxy) {
             options,
             function () {
                 MyVars.viewer.start(); // this would be needed if we also want to load extensions
-                loadDocument(MyVars.viewer, options.document, isProxy);
+                loadDocument(MyVars.viewer, options.document);
                 //addSelectionListener(MyVars.viewer);
             }
         );
@@ -1156,46 +1324,34 @@ function addSelectionListener(viewer) {
         });
 }
 
-function loadDocument(viewer, documentId, isProxy) {
+function loadDocument(viewer, documentId) {
     // Set the Environment to "Riverbank"
     //viewer.setLightPreset(8);
 
     // Make sure that the loaded document's setting won't
     // override it and change it to something else
     //viewer.prefs.tag('ignore-producer');
-
-    console.log('loadDocument, isProxy = ' + isProxy.toString())
-    if (isProxy) {
-        let endpoint = window.location.origin + '/viewer_proxy';
-        //let endpoint = 'https://developer.api.autodesk.com/oss/v2/buckets/adamenagy_viewables/objects';
-        
-		Autodesk.Viewing.endpoint.setEndpointAndApi (endpoint, 'modelDerivativeV2') ;
-			
-        viewer.loadModel(endpoint + "/" + documentId);
-    } else {
-        Autodesk.Viewing.endpoint.setEndpointAndApi ('https://developer.api.autodesk.com/', 'modelDerivativeV2') ;
                 
-        Autodesk.Viewing.Document.load(
-            documentId,
-            // onLoad
-            function (doc) {
-                var geometryItems = doc.getRoot().search({ "role": "3d", "type": "geometry" });
+    Autodesk.Viewing.Document.load(
+        documentId,
+        // onLoad
+        function (doc) {
+            var geometryItems = doc.getRoot().search({ "role": "3d", "type": "geometry" });
 
-                // Try 3d geometry first
-                if (geometryItems.length < 1) {
-                    geometryItems.push(doc.getRoot().getDefaultGeometry())
-                }
-
-                viewer.loadDocumentNode(doc, geometryItems[0]).then(i => {
-                    // documented loaded, any action?
-                });
-            },
-            // onError
-            function (errorMsg) {
-                //showThumbnail(documentId.substr(4, documentId.length - 1));
+            // Try 3d geometry first
+            if (geometryItems.length < 1) {
+                geometryItems.push(doc.getRoot().getDefaultGeometry())
             }
-        )
-    } 
+
+            viewer.loadDocumentNode(doc, geometryItems[0]).then(i => {
+                // documented loaded, any action?
+            });
+        },
+        // onError
+        function (errorMsg) {
+            //showThumbnail(documentId.substr(4, documentId.length - 1));
+        }
+    )
 }
 
 function selectInViewer(objectIds) {
