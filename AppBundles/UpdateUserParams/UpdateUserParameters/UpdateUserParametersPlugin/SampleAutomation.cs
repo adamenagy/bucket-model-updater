@@ -197,8 +197,11 @@ namespace UpdateUserParametersPlugin
             LogTrace(">> End of listing folder contents (before flatten)");
           }
 
-          LogTrace($"Flattening SvfOutput folder");
-          flattenFolder(viewableDir, viewableDir, "");
+          if (!options.ContainsKey("dontFlattenFolder"))
+          {
+            LogTrace($"Flattening SvfOutput folder");
+            flattenFolder(viewableDir, viewableDir, "");
+          }
 
           if (isVerbose)
           {
