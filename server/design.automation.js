@@ -1046,6 +1046,7 @@ router.post('/viewables/:id', jsonParser, async function(req, res) {
                 "inputParams": {
                     "verb": "get",
                     "localName": "inputParams.json",
+                    //"url": `data:application/json,{${documentPath}${projectPath}, "dontFlattenFolder": true, "verboseLogs": true, "outputType":"svf"}`
                     "url": `data:application/json,{${documentPath}${projectPath}, "outputType":"svf"}`
                 },
                 "documentParams": {
