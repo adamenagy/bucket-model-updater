@@ -824,7 +824,7 @@ var _daItems = {
         },
         "activities": {
             "commandLine": [
-                "$(appbundles[GetZipContents].path)\\DA4I_BasicInfoPlugin.bundle\\Contents\\GetZipContentsExe.exe \"$(args[inputFile].path)\" outputFile.json"
+                "\"$(appbundles[GetZipContents].path)\\DA4I_BasicInfoPlugin.bundle\\Contents\\GetZipContentsExe.exe\" \"$(args[inputFile].path)\" outputFile.json"
             ],
             "parameters": {
             "inputFile": {
