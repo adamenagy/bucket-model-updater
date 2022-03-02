@@ -824,7 +824,7 @@ var _daItems = {
         },
         "activities": {
             "commandLine": [
-                "$(appbundles[GetZipContents].path)\\DA4I_BasicInfoPlugin.bundle\\Contents\\GetZipContentsExe.exe $(args[inputFile].path) outputFile.json"
+                "$(appbundles[GetZipContents].path)\\DA4I_BasicInfoPlugin.bundle\\Contents\\GetZipContentsExe.exe \"$(args[inputFile].path)\" outputFile.json"
             ],
             "parameters": {
             "inputFile": {
@@ -850,7 +850,7 @@ var _daItems = {
         },
         "activities": {
             "commandLine": [
-                "$(engine.path)\\\\InventorCoreConsole.exe /al $(appbundles[ExtractUserParams].path)"
+                "$(engine.path)\\\\InventorCoreConsole.exe /al \"$(appbundles[ExtractUserParams].path)\""
             ],
             "parameters": {
             "inputFile": {
@@ -880,7 +880,7 @@ var _daItems = {
         },
         "activities": {
             "commandLine": [
-              "$(engine.path)\\InventorCoreConsole.exe /al $(appbundles[UpdateModel].path)"
+              "$(engine.path)\\InventorCoreConsole.exe /al \"$(appbundles[UpdateModel].path)\""
             ],
             "parameters": {
               "inputFile": {
