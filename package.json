@@ -34,5 +34,9 @@
     "nodemon": "nodemon start.js --ignore www/"
   },
   "author": "Forge Partner Development",
-  "license": "MIT"
+  "license": "MIT",
+  "engines" : { 
+    "npm" : ">=7.0.0",
+    "node" : ">=16.0.0"
+  }
 }
