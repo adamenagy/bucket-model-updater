@@ -819,7 +819,7 @@ router.post('/params/hash', jsonParser, async function(req, res) {
 var _daItems = {
     "GetZipContents": {
         "appbundles": {
-            "engine": "Autodesk.Inventor+24",
+            "engine": "Autodesk.Inventor+2022",
             "description": "Gets contents of zip file"
         },
         "activities": {
@@ -837,7 +837,7 @@ var _daItems = {
                 "localName": "outputFile.json"
             }
             },
-            "engine": "Autodesk.Inventor+24",
+            "engine": "Autodesk.Inventor+2022",
             "appbundles": [
             ],
             "description": "Get Zip Contents into a json file"
@@ -845,7 +845,7 @@ var _daItems = {
     }, 
     "ExtractUserParams": {
         "appbundles": {
-            "engine": "Autodesk.Inventor+24",
+            "engine": "Autodesk.Inventor+2022",
             "description": "Gets user parameters from the Inventor model"
         },
         "activities": {
@@ -867,7 +867,7 @@ var _daItems = {
                 "localName": "documentParams.json"
             }
             },
-            "engine": "Autodesk.Inventor+24",
+            "engine": "Autodesk.Inventor+2022",
             "appbundles": [
             ],
             "description": "Extract params from Inventor documents"
@@ -875,7 +875,7 @@ var _daItems = {
     },
     "UpdateModel": {
         "appbundles": {
-            "engine": "Autodesk.Inventor+24",
+            "engine": "Autodesk.Inventor+2022",
             "description": "Updates user parameters in the model with the provided values"
         },
         "activities": {
@@ -902,7 +902,7 @@ var _daItems = {
                 "localName": "SvfOutput"
               }
             },
-            "engine": "Autodesk.Inventor+24",
+            "engine": "Autodesk.Inventor+2022",
             "appbundles": [
             ],
             "description": "Update model using callback"
