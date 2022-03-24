@@ -31,6 +31,8 @@ using Path = System.IO.Path;
 using Directory = System.IO.Directory;
 
 using Newtonsoft.Json;
+using System.IO;
+using Newtonsoft.Json.Linq;
 
 namespace UpdateUserParametersPlugin
 {
@@ -123,10 +125,11 @@ namespace UpdateUserParametersPlugin
             isVerbose = true;
           }
 
+                    string fullProjectPath = null;
           if (options.ContainsKey("projectFile"))
           {
             string projectFile = options["projectFile"];
-            string fullProjectPath = Path.GetFullPath(Path.Combine(currDir, projectFile));
+            fullProjectPath = Path.GetFullPath(Path.Combine(currDir, projectFile));
 
             // For debug of input data set
             //DirPrint(currDir);
@@ -187,10 +190,17 @@ namespace UpdateUserParametersPlugin
 
           // Save Forge Viewer format (SVF)
           string viewableDir = SaveForgeViewable(doc);
-          //string viewableZip = Path.Combine(Directory.GetCurrentDirectory(), "viewable.zip");
-          //ZipOutput(viewableDir, viewableZip);
+                    //string viewableZip = Path.Combine(Directory.GetCurrentDirectory(), "viewable.zip");
+                    //ZipOutput(viewableDir, viewableZip);
+                    if (fullProjectPath != null)
+                    {
+                            var sessionDir = Path.Combine(currDir, "SvfOutput");
+                        var projectDir = Path.GetDirectoryName(fullProjectPath); 
+                            FixSvf(projectDir, sessionDir);
+                    }
+                    
 
-          if (isVerbose)
+                    if (isVerbose)
           {
             LogTrace(">> Start of listing folder contents (before flatten)");
             listFolderContents(currDir);
@@ -277,7 +287,57 @@ namespace UpdateUserParametersPlugin
       }
     }
 
-    private string SaveForgeViewable(Document doc)
+        private void FixSvf(string projectPath, string svfPath)
+        {
+            var materialsPath = Directory.GetFiles(svfPath, "Materials.json.gz", SearchOption.AllDirectories)[0];
+            var materialsFolder = Path.GetDirectoryName(materialsPath);
+
+            using (FileStream originalFileStream = new FileStream(materialsPath, FileMode.Open))
+            {
+                using (GZipStream decompressionStream = new System.IO.Compression.GZipStream(originalFileStream, mode: CompressionMode.Decompress))
+                using (var sr = new StreamReader(decompressionStream))
+                {
+                    dynamic doc = JObject.Parse(sr.ReadToEnd());
+                    foreach (var mat in doc.materials)
+                    {
+                        foreach (var submat in mat.Value.materials)
+                        {
+                            try
+                            {
+                                // Folder separators in the value could be either '/' or '\\'
+                                var properties = submat.Value.properties;
+                                var bitmap = properties.uris.unifiedbitmap_Bitmap;
+                                var imageRelPath = bitmap.values[0].Value;
+
+                                // To unify the folder separator characters ('/' vs '\\') to '\\' we use GetFullPath()
+                                var imageFullPath = Path.GetFullPath(Path.Combine(materialsFolder, imageRelPath));
+
+                                // If the image is already there, we have nothing to do
+                                if (System.IO.File.Exists(imageFullPath))
+                                    continue;
+
+                                // Find missing image in Inventor project folder
+                                var imageFileName = Path.GetFileName(imageFullPath);
+                                var sourceImageFullPath = Directory.GetFiles(projectPath, imageFileName, SearchOption.AllDirectories)[0];
+
+                                // Create folder if needed
+                                var imageFolder = Path.GetDirectoryName(imageFullPath);
+                                Directory.CreateDirectory(imageFolder);
+
+                                System.IO.File.Copy(sourceImageFullPath, imageFullPath);
+                                LogTrace("Added file " + imageFullPath);
+                            }
+                            catch (Exception ex)
+                            {
+                                LogTrace(ex.Message);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private string SaveForgeViewable(Document doc)
     {
       string viewableOutputDir = null;
       //using (new HeartBeat())

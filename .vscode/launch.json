@@ -5,13 +5,16 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "node",
+      "type": "pwa-node",
       "request": "launch",
       "name": "Launch Program",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
       "program": "${workspaceFolder}/start.js",
       "env": {
-        "FORGE_VIEWABLES_CALLBACK": "http://2e02a2e0d8e7.ngrok.io/da/svf/callback",
-        "FORGE_ONCOMPLETE_CALLBACK": "http://2e02a2e0d8e7.ngrok.io/da/oncomplete/callback"
+        "FORGE_VIEWABLES_CALLBACK": "https://b8cf-86-2-185-49.ngrok.io/da/svf/callback",
+        "FORGE_ONCOMPLETE_CALLBACK": "https://b8cf-86-2-185-49.ngrok.io/da/oncomplete/callback"
       }
     }
   ]
