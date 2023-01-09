@@ -1,7 +1,7 @@
 {
-  "name": "derivative-service-node.js-sample",
+  "name": "bucket-model-updater",
   "version": "2.0.0",
-  "description": "A sample that shows how to use the Model Derivative API.",
+  "description": "Configure Inventor models stored in zip files in an OSS bucket",
   "dependencies": {
     "adm-zip": "0.4.13",
     "body-parser": "^1.18.3",
@@ -26,14 +26,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/developer-autodesk/model.derivative-nodejs-sample"
+    "url": "git://github.com/adamenagy/bucket-model-updater"
   },
   "scripts": {
     "start": "NODE_ENV=production node start.js",
     "dev": "node start.js",
     "nodemon": "nodemon start.js --ignore www/"
   },
-  "author": "Forge Partner Development",
+  "author": "Autodesk Platform Services",
   "license": "MIT",
   "engines": {
     "npm": ">=7.0.0",
