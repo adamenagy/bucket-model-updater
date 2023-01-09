@@ -39,6 +39,7 @@ router.get('/user/logoff', function (req, res) {
 
 // wait for Autodesk callback (oAuth callback)
 router.get('/user/token', function (req, res) {
+    console.log("Existing session", req.session);
     var tokenSession = new token(req.session);
 
     try {
@@ -58,6 +59,8 @@ router.get('/user/token', function (req, res) {
               if (socket_id) {
                 req.session.socket_id = socket_id;
               }
+
+              console.log("Newly set session:", req.session);
 
               console.log('Token: ' + credentials.access_token);
             res.setHeader('Access-Control-Allow-Origin', '*');
