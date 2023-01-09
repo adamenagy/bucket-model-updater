@@ -8,7 +8,7 @@
     "cookie-parser": "^1.4.3",
     "crypto": "1.0.1",
     "ejs": "^2.6.1",
-    "express": "^4.16.3",
+    "express": "^4.17.3",
     "express-session": "^1.17.1",
     "express-sslify": "^1.2.0",
     "forge-apis": "^0.4.2",
