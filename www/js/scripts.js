@@ -360,7 +360,7 @@ function get2LegToken(onSuccess, onError) {
             }
         });
     } else {
-        console.log('Returning saved 3 legged token (User Authorization): ' + MyVars.token2Leg);
+        console.log('Returning saved 2 legged token (User Authorization): ' + MyVars.token2Leg);
 
         return MyVars.token2Leg;
     }
@@ -372,7 +372,7 @@ function authenticate(callback) {
             var auth = $("#authenticate");
             MyVars.token2Leg = token;
 
-            console.log('Returning new 3 legged token (User Authorization): ' + MyVars.token2Leg);
+            console.log('Returning new 2 legged token (User Authorization): ' + MyVars.token2Leg);
             showProgress()
 
             auth.html('Logged in');
