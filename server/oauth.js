@@ -64,6 +64,7 @@ router.get('/user/token', function (req, res) {
 
               console.log('Token: ' + credentials.access_token);
               req.session.save();
+              console.log("Called req.session.save()");
             //res.setHeader('Access-Control-Allow-Origin', '*');
             res.json({ token: credentials.access_token, expires_in: credentials.expires_in });
           })
