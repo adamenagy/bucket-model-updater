@@ -18,7 +18,7 @@
 'use strict';
 
 var express = require('express');
-var cookieParser = require('cookie-parser');
+//var cookieParser = require('cookie-parser');
 var session = require('express-session');
 var enforce = require('express-sslify');
 var app = express();
@@ -28,7 +28,7 @@ var app = express();
 //app.use(enforce.HTTPS({ trustProtoHeader: true }));
 
 // this session will be used to save the oAuth token
-app.use(cookieParser());
+//app.use(cookieParser());
 app.set('trust proxy', 1) // trust first proxy - HTTPS on Heroku 
 app.use(session({
     secret: 'autodeskforge',
