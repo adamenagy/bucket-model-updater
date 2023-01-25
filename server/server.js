@@ -29,12 +29,15 @@ var app = express();
 
 // this session will be used to save the oAuth token
 //app.use(cookieParser());
-app.set('trust proxy', 2) // trust first proxy - HTTPS on Heroku 
+app.set('trust proxy', (ip) => {
+  console.log({ip})
+  return true
+}) // trust first proxy - HTTPS on Heroku 
 app.use(session({
     secret: 'autodeskforge',
     cookie: {
         httpOnly: true,
-        //secure: (process.env.NODE_ENV === 'production'),
+        secure: (process.env.NODE_ENV === 'production'),
         maxAge: 1000 * 60 * 60 // 1 hours to expire the session and avoid memory leak
     },
     resave: false,
