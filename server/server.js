@@ -35,6 +35,7 @@ app.set('trust proxy', (ip) => {
 }) // trust first proxy - HTTPS on Heroku 
 app.use(session({
     secret: 'autodeskforge',
+    proxy: true,
     cookie: {
         httpOnly: true,
         secure: (process.env.NODE_ENV === 'production'),
