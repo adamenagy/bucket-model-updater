@@ -57,7 +57,10 @@ async function findFileOss(req, res, id) {
         // when accessing objects from bucket the object path cannot contain '/' it needs to be URL encoded to '%2F'
         // that's what encodeURIComponent() achieves 
         // use redirect instead of downloading to server and passing it to client
-        res.redirect(`https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(id)}`);
+        //res.redirect(`https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(id)}`);
+        let objects = new forgeSDK.ObjectsApi();
+        let data = await objects.createSignedResource(bucketKey, id, {}, { 'access': 'read', 'useCdn': true }, tokenSession.getOAuth(), tokenSession.getCredentials());
+        res.redirect(data.body.signedUrl);
     } catch (error) {
         console.log(error);
         res.status(404).end();
