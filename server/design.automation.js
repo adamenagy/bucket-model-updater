@@ -713,7 +713,7 @@ router.post('/svf/callback', jsonParser, async function(req, res) {
         let urls = {};
         for (let fileNameEncoded of req.body.files) {
             let options = {
-                uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${fileNameEncoded}/signed?access=write`,
+                uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${fileNameEncoded}/signed?access=write&useCdn=true`,
                 method: "post",
                 headers: {
                     "Content-Type": "application/json;charset=UTF-8",
