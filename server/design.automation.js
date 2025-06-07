@@ -23,6 +23,26 @@ const crypto = require('crypto');
 
 const uuidv4 = require('uuid/v4');
 
+const vars = {
+    "appName": "BucketModelUpdater",
+    "appVersion": "1.0.0",
+    "appDescription": "A sample app to update Inventor models using Design Automation API",
+    "alias": "prod",
+    "engine": "Autodesk.Inventor+2025",
+    "extractUserParams": "ExtractUserParams",
+    "getZipContents": "GetZipContents",
+    "updateModel": "UpdateModel",  
+}
+
+function getDaResourceName(name, isAliasAdded) {
+    // e.g. BucketModelUpdater_GetZipContents+prod
+    let ret = `${vars.appName}_${name}`;
+    if (isAliasAdded) {
+        ret += `+${vars.alias}`;
+    }
+    return ret;
+}
+
 async function daRequest(req, path, method, headers, body) {
     headers = headers || {};
     if (!headers['Authorization']) {
@@ -47,7 +67,13 @@ async function daRequest(req, path, method, headers, body) {
     
     let data = [];
     while (true) {
-        let response = await requestPromise(options);
+        let response = null;
+        
+        try {
+            response = await requestPromise(options);
+        } catch (error) {
+            console.log(error);
+        }
     
         if (!response || !response.paginationToken) {
             if (data.length > 0) {
@@ -137,7 +163,12 @@ async function uploadFile(inputUrl, uploadParameters) {
     if (inputUrl.startsWith("http")) {
         uploadOptions.formData.file = request(downloadOptions);
     } else {
-        uploadOptions.formData.file = await readFilePromise(path.join(__dirname, inputUrl));
+        try {
+            uploadOptions.formData.file = await readFilePromise(inputUrl);
+        } catch (err) {
+            console.error(`Error reading file ${inputUrl}:`, err);
+            throw new Error(`Failed to read file: ${inputUrl}`);
+        }
     }
 
     await requestPromise(uploadOptions);
@@ -498,7 +529,7 @@ router.get('/zipcontents/:id', async function(req, res) {
 
         // run workitem
         var clientId = tokenSession.getClientId();
-        const activityId = `${clientId}.GetZipContents+prod`;
+        const activityId = `${clientId}.${getDaResourceName(vars.getZipContents, true)}`;
             
         var createReply = await createItem(req, "workitems", {
             "activityId": activityId, 
@@ -602,7 +633,7 @@ router.get('/params/:id', async function(req, res) {
 
         // run workitem
         var clientId = tokenSession.getClientId();
-        const activityId = `${clientId}.ExtractUserParams+prod`;
+        const activityId = `${clientId}.${getDaResourceName(vars.extractUserParams, true)}`;
 
         documentPath = `"documentPath":"inputFile/${documentPath}"`;
         projectPath = (projectPath !== '') ? `, "projectPath":"inputFile/${projectPath}"` : '';
@@ -795,7 +826,7 @@ router.post('/oncomplete/callback', jsonParser, async function(req, res) {
         let socketId = req.headers["socket-id"];
         let ossId = req.headers["oss-id"];
         let activityId = req.headers["activity-id"];
-        if (activityId.includes("UpdateModel")) {
+        if (activityId.includes(getDaResourceName(vars.updateModel))) {
             let bucketKey = req.headers["viewables-info-bucket-key"];
             let objectNme = req.headers["viewables-info-object-name"];
             let authorization = req.headers["authorization"];
@@ -816,99 +847,99 @@ router.post('/params/hash', jsonParser, async function(req, res) {
     return res.json({ hash: viewablesInfoNameHash });
 });
 
-var _daItems = {
-    "GetZipContents": {
-        "appbundles": {
-            "engine": "Autodesk.Inventor+2025",
-            "description": "Gets contents of zip file"
+var _daItems = {};
+_daItems[getDaResourceName(vars.getZipContents)] = {
+    "appbundles": {
+        "engine": vars.engine,
+        "description": "Gets contents of zip file"
+    },
+    "activities": {
+        "commandLine": [
+            `\"$(appbundles[${getDaResourceName(vars.getZipContents)}].path)\\DA4I_BasicInfoPlugin.bundle\\Contents\\GetZipContentsExe.exe\" \"$(args[inputFile].path)\" outputFile.json`
+        ],
+        "parameters": {
+        "inputFile": {
+            "zip": true,
+            "verb": "get",
+            "localName": "inputFile"
         },
-        "activities": {
-            "commandLine": [
-                "\"$(appbundles[GetZipContents].path)\\DA4I_BasicInfoPlugin.bundle\\Contents\\GetZipContentsExe.exe\" \"$(args[inputFile].path)\" outputFile.json"
-            ],
-            "parameters": {
-            "inputFile": {
-                "zip": true,
-                "verb": "get",
-                "localName": "inputFile"
-            },
-            "outputFile": {
-                "verb": "put",
-                "localName": "outputFile.json"
-            }
-            },
-            "engine": "Autodesk.Inventor+2025",
-            "appbundles": [
-            ],
-            "description": "Get Zip Contents into a json file"
-        }                 
-    }, 
-    "ExtractUserParams": {
-        "appbundles": {
-            "engine": "Autodesk.Inventor+2025",
-            "description": "Gets user parameters from the Inventor model"
+        "outputFile": {
+            "verb": "put",
+            "localName": "outputFile.json"
+        }
         },
-        "activities": {
-            "commandLine": [
-                "$(engine.path)\\\\InventorCoreConsole.exe /al \"$(appbundles[ExtractUserParams].path)\""
-            ],
-            "parameters": {
+        "engine": vars.engine,
+        "appbundles": [
+        ],
+        "description": "Get Zip Contents into a json file"
+    }                 
+};
+_daItems[getDaResourceName(vars.extractUserParams)] = {
+    "appbundles": {
+        "engine": vars.engine,
+        "description": "Gets user parameters from the Inventor model"
+    },
+    "activities": {
+        "commandLine": [
+            `$(engine.path)\\\\InventorCoreConsole.exe /al \"$(appbundles[${getDaResourceName(vars.extractUserParams)}].path)\"`
+        ],
+        "parameters": {
+        "inputFile": {
+            "zip": true,
+            "verb": "get",
+            "localName": "inputFile"
+        },
+        "inputParams": {
+            "verb": "get",
+            "localName": "inputParams.json"
+        },
+        "documentParams": {
+            "verb": "put",
+            "localName": "documentParams.json"
+        }
+        },
+        "engine": vars.engine,
+        "appbundles": [
+        ],
+        "description": "Extract params from Inventor documents"
+    }
+};
+_daItems[getDaResourceName(vars.updateModel)] = {
+    "appbundles": {
+        "engine": vars.engine,
+        "description": "Updates user parameters in the model with the provided values"
+    },
+    "activities": {
+        "commandLine": [
+            `$(engine.path)\\InventorCoreConsole.exe /al \"$(appbundles[${getDaResourceName(vars.updateModel)}].path)\"`
+        ],
+        "parameters": {
             "inputFile": {
-                "zip": true,
-                "verb": "get",
-                "localName": "inputFile"
+            "zip": true,
+            "verb": "get",
+            "localName": "inputFile"
             },
             "inputParams": {
-                "verb": "get",
-                "localName": "inputParams.json"
+            "verb": "get",
+            "localName": "inputParams.json"
             },
             "documentParams": {
-                "verb": "put",
-                "localName": "documentParams.json"
+            "verb": "get",
+            "localName": "documentParams.json"
+            },
+            "svfOutput": {
+            "ondemand": true,
+            "verb": "put",
+            "localName": "SvfOutput"
             }
-            },
-            "engine": "Autodesk.Inventor+2025",
-            "appbundles": [
-            ],
-            "description": "Extract params from Inventor documents"
-        }
-    },
-    "UpdateModel": {
-        "appbundles": {
-            "engine": "Autodesk.Inventor+2025",
-            "description": "Updates user parameters in the model with the provided values"
         },
-        "activities": {
-            "commandLine": [
-              "$(engine.path)\\InventorCoreConsole.exe /al \"$(appbundles[UpdateModel].path)\""
-            ],
-            "parameters": {
-              "inputFile": {
-                "zip": true,
-                "verb": "get",
-                "localName": "inputFile"
-              },
-              "inputParams": {
-                "verb": "get",
-                "localName": "inputParams.json"
-              },
-              "documentParams": {
-                "verb": "get",
-                "localName": "documentParams.json"
-              },
-              "svfOutput": {
-                "ondemand": true,
-                "verb": "put",
-                "localName": "SvfOutput"
-              }
-            },
-            "engine": "Autodesk.Inventor+2025",
-            "appbundles": [
-            ],
-            "description": "Update model using callback"
-          }         
-    },
-}
+        "engine": vars.engine,
+        "appbundles": [
+        ],
+        "description": "Update model using callback"
+    }         
+};
+
 
 // Create all the AppBundles and Activities needed
 router.post('/items/setup', jsonParser, async function(req, res) {
@@ -919,7 +950,7 @@ router.post('/items/setup', jsonParser, async function(req, res) {
         let clientId = tokenSession.getClientId();
         for (let id in _daItems) {
             console.log(id);
-            let fullId = `${clientId}.${id}+prod`;        
+            let fullId = `${clientId}.${id}+${vars.alias}`;        
 
             let item = _daItems[id]
             for (let type in item) {
@@ -929,7 +960,13 @@ router.post('/items/setup', jsonParser, async function(req, res) {
                 if (type === "activities") {
                     data.appbundles.push(fullId)
                 } else if (type === "appbundles") {
-                    data.bundle = "zipfiles/" + id + ".zip"
+                    let filePath = path.join(__dirname, "zipfiles/" + id.replace(vars.appName + "_", "") + ".zip");
+                    if (!fs.existsSync(filePath)) {
+                        console.error(`File ${filePath} does not exist. Please upload the appbundle zip file.`);
+                        res.status(400).json({ status: "failed", message: `File ${filePath} does not exist.` });
+                        return;
+                    }
+                    data.bundle = filePath;
                 }
 
                 try {
@@ -941,7 +978,7 @@ router.post('/items/setup', jsonParser, async function(req, res) {
                     }
                 } catch (error) {
                     let ret = await createItem(req, type, data)
-                    ret = await createItemAlias(req, type, id, 1, "prod")
+                    ret = await createItemAlias(req, type, id, 1, vars.alias)
                     console.log(error);
                 }
             }   
@@ -1025,7 +1062,7 @@ router.post('/viewables/:id', jsonParser, async function(req, res) {
         }
 
         // run workitem
-        const activityId = `${clientId}.UpdateModel+prod`;
+        const activityId = `${clientId}.${getDaResourceName(vars.updateModel, true)}`;
 
         documentPath = `"inputFile":"inputFile/${documentPath}"`;
         projectPath = (projectPath !== '') ? `, "projectFile":"inputFile/${projectPath}"` : '';
