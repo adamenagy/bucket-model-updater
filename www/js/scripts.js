@@ -1274,8 +1274,12 @@ function cleanupViewer() {
     if (MyVars.viewer && MyVars.viewer.model) {
         console.log("Unloading current model from Autodesk Viewer");
 
-        MyVars.viewer.tearDown();
-        MyVars.viewer.setUp(MyVars.viewer.config);
+        //MyVars.viewer.tearDown();
+        //MyVars.viewer.setUp(MyVars.viewer.config);
+
+        MyVars.viewer.finish();
+        MyVars.viewer = null;
+        Autodesk.Viewing.shutdown();
     }
 }
 
@@ -1288,8 +1292,8 @@ function initializeViewer(urn) {
 
     var options = {
         document: urn,
-        env: 'AutodeskProduction', //'Local' //'AutodeskStaging', //'AutodeskProduction',
-        getAccessToken: get2LegToken
+        env: 'Local' //'AutodeskStaging', //'AutodeskProduction',
+        //getAccessToken: get2LegToken
     };
     
     if (MyVars.viewer) {
