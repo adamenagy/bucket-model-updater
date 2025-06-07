@@ -722,6 +722,25 @@ function getGuid() {
     return uuidv4();
 }
 
+async function getSignedUrl(bucketKey, objectName, authorization) {
+    let options = {
+        uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${objectName}/signed?access=readwrite&useCdn=true`,
+        method: "post",
+        headers: {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Authorization": authorization
+        },
+        body: {
+            "minutesExpiration" : 45,
+            "singleUse" : true
+        },
+        json: true
+    };
+    
+    let response = await requestPromise(options);
+    return response.signedUrl;
+}
+
 // The incoming message will be something like:
 // {"permissions":"write","files":["textfile1.txt","textfile2.txt"]} 
 // We have to return something like:
@@ -739,22 +758,7 @@ router.post('/svf/callback', jsonParser, async function(req, res) {
         let bucketKey = req.headers["viewables-bucket-key"];
         let urls = {};
         for (let fileNameEncoded of req.body.files) {
-            let options = {
-                uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${fileNameEncoded}/signed?access=write&useCdn=true`,
-                method: "post",
-                headers: {
-                    "Content-Type": "application/json;charset=UTF-8",
-                    "Authorization": req.headers["authorization"]
-                },
-                body: {
-                    "minutesExpiration" : 45,
-                    "singleUse" : true
-                },
-                json: true
-            };
-            
-            let response = await requestPromise(options);
-            urls[fileNameEncoded] = response.signedUrl;
+            urls[fileNameEncoded] = await getSignedUrl(bucketKey, fileNameEncoded, req.headers["authorization"]);
         }
 
         console.log("Returning URLS: ", urls);
@@ -766,12 +770,13 @@ router.post('/svf/callback', jsonParser, async function(req, res) {
 });
 
 async function getInfoFile(bucketKey, objectName, authorization) {
+    let signedUrl = await getSignedUrl(bucketKey, objectName, authorization);
+
     let options = {
-        uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(objectName)}`,
+        uri: signedUrl,
         method: "get",
         headers: {
             "Content-Type": "application/json;charset=UTF-8",
-            "Authorization": authorization
         },
         json: true
     };
@@ -796,12 +801,13 @@ async function updateInfoFile(bucketKey, objectName, authorization, data) {
     }
     
     // save new content in file
+    let signedUrl = await getSignedUrl(bucketKey, objectName, authorization); 
+
     let options = {
-        uri: `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodeURIComponent(objectName)}`,
+        uri: signedUrl,
         method: "put",
         headers: {
             "Content-Type": "application/json;charset=UTF-8",
-            "Authorization": authorization
         },
         body: viewablesInfo,
         json: true
