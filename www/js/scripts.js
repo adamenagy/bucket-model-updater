@@ -1280,6 +1280,8 @@ function cleanupViewer() {
 }
 
 function initializeViewer(urn) {
+    Autodesk.Viewing.endpoint.HTTP_REQUEST_HEADERS['If-Modified-Since'] = "Sat, 29 Oct 1994 19:43:31 GMT";
+
     cleanupViewer();
 
     console.log("Launching Autodesk Viewer for: " + urn);
