@@ -2,6 +2,7 @@
   "name": "bucket-model-updater",
   "version": "2.0.0",
   "description": "Configure Inventor models stored in zip files in an OSS bucket",
+  "main": "start.js",
   "dependencies": {
     "adm-zip": "0.4.13",
     "body-parser": "^1.18.3",
@@ -16,7 +17,7 @@
     "morgan": "^1.9.1",
     "oauth": "^0.9.14",
     "request": "^2.87.0",
-    "request-promise": "4.2.4",
+    "request-promise": "^4.2.6",
     "socket.io": "^4.4.1",
     "stream": "0.0.2",
     "trim": "^1.0.1",
