@@ -89,6 +89,10 @@ async function daRequest(req, path, method, headers, body) {
     
 }
 
+function getUrn(bucketKey, objectName) {
+    return `urn:adsk.objects:os.object:${bucketKey}/${objectName}`;
+}
+
 /////////////////////////////////////////////////////////////////
 // Items (AppBundles and Activities)
 /////////////////////////////////////////////////////////////////
@@ -523,10 +527,6 @@ router.get('/zipcontents/:id', async function(req, res) {
     if (utcJson <= utcFile) {
         console.log("Running job to get contents of zip file into a json file...");
 
-        const getUrl = (bucketKey, objectName) => {
-            return `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${objectName}`
-        }
-
         // run workitem
         var clientId = tokenSession.getClientId();
         const activityId = `${clientId}.${getDaResourceName(vars.getZipContents, true)}`;
@@ -538,7 +538,7 @@ router.get('/zipcontents/:id', async function(req, res) {
                     "zip": true,
                     "verb": "get",
                     "localName": "inputFile",
-                    "url": getUrl(contentsInfo.bucketKey, contentsInfo.objectName),
+                    "url": getUrn(contentsInfo.bucketKey, contentsInfo.objectName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
@@ -547,7 +547,7 @@ router.get('/zipcontents/:id', async function(req, res) {
                 "outputFile": {
                     "verb": "put",
                     "localName": "outputFile.json",
-                    "url": getUrl(contentsInfo.bucketKey, contentsName),
+                    "url": getUrn(contentsInfo.bucketKey, contentsName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
@@ -627,10 +627,6 @@ router.get('/params/:id', async function(req, res) {
     if (utcParam <= utcFile) {
         console.log("Running job to get parameters of model into a json file...");
 
-        const getUrl = (bucketKey, objectName) => {
-            return `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${objectName}`
-        }
-
         // run workitem
         var clientId = tokenSession.getClientId();
         const activityId = `${clientId}.${getDaResourceName(vars.extractUserParams, true)}`;
@@ -644,7 +640,7 @@ router.get('/params/:id', async function(req, res) {
                     "zip": true,
                     "verb": "get",
                     "localName": "inputFile",
-                    "url": getUrl(paramsInfo.bucketKey, paramsInfo.objectName),
+                    "url": getUrn(paramsInfo.bucketKey, paramsInfo.objectName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
@@ -658,7 +654,7 @@ router.get('/params/:id', async function(req, res) {
                 "documentParams": {
                     "verb": "put",
                     "localName": "documentParams.json",
-                    "url": getUrl(paramsInfo.bucketKey, paramsName),
+                    "url": getUrn(paramsInfo.bucketKey, paramsName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
@@ -1057,10 +1053,6 @@ router.post('/viewables/:id', jsonParser, async function(req, res) {
 
         console.log("Running job to update model...");
 
-        const getUrl = (bucketKey, objectName) => {
-            return `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${objectName}`
-        }
-
         // run workitem
         const activityId = `${clientId}.${getDaResourceName(vars.updateModel, true)}`;
 
@@ -1074,7 +1066,7 @@ router.post('/viewables/:id', jsonParser, async function(req, res) {
                     "verb": "get",
                     "localName": "inputFile",
                     "zip": true,
-                    "url": getUrl(viewablesInfoObject.bucketKey, viewablesInfoObject.objectName),
+                    "url": getUrn(viewablesInfoObject.bucketKey, viewablesInfoObject.objectName),
                     "headers": {
                         "Authorization": "Bearer " + credentials.access_token,
                         "Content-type": "application/octet-stream"
