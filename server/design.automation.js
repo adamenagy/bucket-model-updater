@@ -549,8 +549,8 @@ router.get('/zipcontents/:id', async function(req, res) {
         // fetch json document
         try {
             console.log("Fetching json file with info about the zip file's content");
-            let data = await objects.getObject(contentsInfo.bucketKey, contentsName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
-            res.json(data.body);
+            let data = await objects.downloadResources(contentsInfo.bucketKey, [{ objectKey: contentsName, responseType: 'json' }], {}, null, tokenSession.getCredentials());
+            res.json(data[0].data);
         } catch (error) {
             console.log(error);
             res.status(error.statusCode).end(error.statusMessage);
@@ -666,8 +666,8 @@ router.get('/params/:id', async function(req, res) {
         // fetch json document
         try {
             console.log("Fetching json file with info about the parameters in the model");
-            let data = await objects.getObject(paramsInfo.bucketKey, paramsName, {}, tokenSession.getOAuth(), tokenSession.getCredentials());
-            res.json(data.body);
+            let data = await objects.downloadResources(paramsInfo.bucketKey, [{ objectKey: paramsName, responseType: 'json' }], {}, null, tokenSession.getCredentials());
+            res.json(data[0].data);
         } catch (error) {
             res.status(error.statusCode).end(error.statusMessage);
         }
@@ -977,8 +977,8 @@ router.post('/viewables/:id', jsonParser, async function(req, res) {
         let data = await objects.getObjectDetails(viewablesInfoObject.bucketKey, viewablesInfoName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
         utcViewable = data.body.lastModifiedDate;
 
-        data = await objects.getObject(viewablesInfoObject.bucketKey, viewablesInfoName, { }, tokenSession.getOAuth(), tokenSession.getCredentials())  
-        workitemStatus = data.body.status;
+        data = await objects.downloadResources(viewablesInfoObject.bucketKey, [{ objectKey: viewablesInfoName, responseType: 'json' }], {}, null, tokenSession.getCredentials())
+        workitemStatus = data[0].data.status;
 
         console.log("Getting info about the zip file");
         data = await objects.getObjectDetails(viewablesInfoObject.bucketKey, viewablesInfoObject.objectName, { "_with": "lastModifiedDate" }, tokenSession.getOAuth(), tokenSession.getCredentials())
