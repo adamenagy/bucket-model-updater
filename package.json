@@ -13,7 +13,7 @@
     "express-session": "^1.17.1",
     "express-sslify": "^1.2.0",
     "forge-apis": "^0.9.9",
-    "formidable": "^1.2.1",
+    "formidable": "^3.5.4",
     "morgan": "^1.9.1",
     "oauth": "^0.9.14",
     "request": "^2.87.0",
