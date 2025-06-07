@@ -50,13 +50,13 @@ router.get('/files/:id', function (req, res) {
     var tokenSession = new token(req.session);
 
     var objects = new forgeSDK.ObjectsApi();
-    objects.getObject(boName.bucketKey, boName.objectName, {}, tokenSession.getOAuth(), tokenSession.getCredentials())
+    objects.downloadResources(boName.bucketKey, [{ objectKey: boName.objectName, responseType: 'json' }], {}, null, tokenSession.getCredentials())
       .then(function (data) {
           var fileParts = boName.objectName.split('.')
           var fileExt = fileParts[fileParts.length - 1];
           res.set('content-type', 'application/octet-stream');
           res.set('Content-Disposition', 'attachment; filename="' + boName.objectName + '"');
-          res.end(data.body);
+          res.end(data[0].data);
       })
       .catch(function (error) {
           res.status(error.statusCode).end(error.statusMessage);
