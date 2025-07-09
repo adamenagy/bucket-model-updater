@@ -954,7 +954,7 @@ router.post('/items/setup', jsonParser, async function(req, res) {
             console.log(id);
             let fullId = `${clientId}.${id}+${vars.alias}`;        
 
-            let item = _daItems[id]
+            let item = JSON.parse(JSON.stringify(_daItems[id])); 
             for (let type in item) {
                 console.log(type);
                 let data = item[type] 
